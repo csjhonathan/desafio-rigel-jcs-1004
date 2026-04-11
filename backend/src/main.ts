@@ -1,9 +1,12 @@
 import { NestFactory } from '@nestjs/core'
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger'
+import { registerHttpRequestLogging } from './common/http-request-logger'
 import { AppModule } from './app.module'
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule)
+
+  registerHttpRequestLogging(app)
 
   app.enableCors({
     origin: process.env.FRONTEND_URL ?? 'http://localhost:3000',
