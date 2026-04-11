@@ -1,13 +1,24 @@
 import { AuthResponse, Communication, CommunicationFilters, PaginatedResponse } from '@/types'
 
-const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
-const API_PREFIX = `${BASE_URL}/api/v1`
+/** Browser: URL no host. Servidor (RSC, NextAuth): dentro do Docker use API_URL_INTERNAL (ex.: http://backend:3001). */
+function getApiBaseUrl(): string {
+  if (typeof window !== 'undefined') {
+    return process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3001'
+  }
+  return (
+    process.env.API_URL_INTERNAL ??
+    process.env.NEXT_PUBLIC_API_URL ??
+    'http://localhost:3001'
+  )
+}
 
 async function request<T>(
   path: string,
   options: RequestInit & { token?: string } = {},
 ): Promise<T> {
   const { token, ...rest } = options
+  const base = getApiBaseUrl()
+  const api_prefix = `${base}/api/v1`
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -18,7 +29,7 @@ async function request<T>(
     headers['Authorization'] = `Bearer ${token}`
   }
 
-  const response = await fetch(`${API_PREFIX}${path}`, {
+  const response = await fetch(`${api_prefix}${path}`, {
     ...rest,
     headers,
   })
