@@ -31,7 +31,7 @@ export function DashboardShell({ initials, children }: DashboardShellProps) {
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
-      <header className="h-14 border-b bg-white sticky top-0 z-20 flex items-center justify-between px-4 sm:px-6">
+      <header className="h-16 border-b bg-white sticky top-0 z-20 flex items-center justify-between px-4 sm:px-6">
         <div className="flex items-center min-w-0 gap-1">
           <button
             type="button"
@@ -68,7 +68,10 @@ export function DashboardShell({ initials, children }: DashboardShellProps) {
           id="dashboard-sidebar"
           className={cn(
             'border-r bg-white flex flex-col shrink-0 sticky top-14 self-start h-[calc(100vh-3.5rem)] transition-[width] duration-300 ease-out overflow-hidden',
-            sidebar_open ? SIDEBAR_OPEN_W : SIDEBAR_CLOSED_W,
+            {
+              "w-[72px]": !sidebar_open,
+              "w-52": sidebar_open
+            }
           )}
         >
           <nav
@@ -83,12 +86,12 @@ export function DashboardShell({ initials, children }: DashboardShellProps) {
               aria-current={home_active ? 'page' : undefined}
               className={cn(
                 'flex items-center rounded-lg transition-colors',
-                home_active
-                  ? 'bg-gray-100 text-gray-900 font-medium'
-                  : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900',
-                sidebar_open
-                  ? 'gap-3 px-3 py-2.5 w-full justify-start min-w-0'
-                  : 'size-10 shrink-0 justify-center',
+                {
+                  "bg-gray-100 text-gray-900 font-medium": home_active,
+                  "text-gray-500 hover:bg-gray-100 hover:text-gray-900": !home_active,
+                  "gap-3 px-3 py-2.5 w-full justify-start min-w-0": sidebar_open,
+                  "size-10 shrink-0 justify-center": !sidebar_open
+                }
               )}
             >
               <Home className="w-5 h-5 shrink-0" aria-hidden />
