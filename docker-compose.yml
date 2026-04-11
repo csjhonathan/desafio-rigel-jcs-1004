@@ -34,7 +34,9 @@ services:
       - backend_node_modules:/app/node_modules
     command: >
       sh -c "test -f node_modules/.bin/nest || npm ci;
-      npx prisma migrate deploy && npx prisma generate && npm run build && node dist/src/main"
+      npx prisma migrate deploy && npx prisma generate && npm run build &&
+      if [ \"$$RUN_SEED\" = \"true\" ]; then npm run seed; fi &&
+      node dist/src/main"
 
   frontend:
     build:
