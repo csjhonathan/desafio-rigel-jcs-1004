@@ -2,6 +2,8 @@
 
 Monorepo fullstack para consulta de comunicações processuais do **Diário de Justiça Eletrônico Nacional** via [Comunica API do PJE](https://comunicaapi.pje.jus.br/swagger/index.html).
 
+**Notas de backend (PJE, Docker, seed, etc.):** [notas.backend.md](./notas.backend.md).
+
 ## Início rápido
 
 ```bash
@@ -15,11 +17,13 @@ docker compose up --build
 
 Se a porta **5432** já estiver em uso no host (Postgres local), defina no `.env` por exemplo `POSTGRES_HOST_PORT=5433` e acesse o banco do container em `localhost:5433`.
 
-O **seed não corre** no `docker build` nem na subida do backend por defeito (evita sincronizar a API do PJE a cada restart). Para correr na subida do Compose, defina no `.env`: `RUN_SEED=true`. Em alternativa, manualmente:
+O **seed não corre** na subida do container do backend: a sincronização com a PJE pode demorar muito e **bloquearia** o arranque — o healthcheck marcaria o serviço como unhealthy e o frontend não subiria. Depois de `docker compose up` (com backend saudável), popular a base:
 
 ```bash
-npm run seed --prefix backend
+docker compose exec backend npm run seed
 ```
+
+Fora do Docker: `npm run seed --prefix backend`.
 
 **Frontend:** http://localhost:3000  
 **Backend / API:** http://localhost:3001/api/v1  
