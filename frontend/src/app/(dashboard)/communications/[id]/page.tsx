@@ -1,3 +1,4 @@
+import { ReactNode } from 'react'
 import { getServerSession } from 'next-auth'
 import { notFound } from 'next/navigation'
 import Link from 'next/link'
@@ -94,7 +95,7 @@ export default async function CommunicationDetailPage({ params }: Props) {
   )
 }
 
-function highlightResJudicata(content: string): React.ReactNode {
+function highlightResJudicata(content: string): ReactNode {
   const parts = content.split(/(transit(?:ou|ada)\s+em\s+julgado)/gi)
   return (
     <>
