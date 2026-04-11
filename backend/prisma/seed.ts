@@ -1,5 +1,5 @@
 import { PrismaClient } from '@prisma/client'
-import * as bcrypt from 'bcrypt'
+import * as bcrypt from 'bcryptjs'
 
 // Importação direta para evitar problemas com NestJS DI no seed
 const prisma = new PrismaClient()
