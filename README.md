@@ -10,7 +10,9 @@ cp .env.example .env
 # Editar .env: adicionar JWT_SECRET, ANTHROPIC_API_KEY (opcional)
 
 # 2. Subir o ambiente completo
-docker-compose up --build
+docker compose up --build
+
+Se a porta **5432** já estiver em uso no host (Postgres local), defina no `.env` por exemplo `POSTGRES_HOST_PORT=5433` e acesse o banco do container em `localhost:5433`.
 
 # 3. Rodar o seed (últimos 20 dias de comunicações)
 npm run seed --prefix backend
