@@ -1,9 +1,15 @@
 'use client'
 
 import * as React from 'react'
-import { X, Sparkles } from 'lucide-react'
 import { Button } from '@/components/atoms/button'
 import { Spinner } from '@/components/atoms/spinner'
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from '@/components/ui/dialog'
 import { api } from '@/lib/api'
 
 interface AiSummaryModalProps {
@@ -43,42 +49,40 @@ export function AiSummaryModal({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="relative bg-background rounded-lg shadow-lg w-full max-w-2xl mx-4 max-h-[80vh] flex flex-col">
-        <div className="flex items-center justify-between p-6 border-b">
-          <div className="flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-primary" />
-            <h2 className="text-lg font-semibold">Resumo por IA</h2>
-          </div>
-          <Button variant="ghost" size="icon" onClick={onClose} aria-label="Fechar modal">
-            <X className="h-4 w-4" />
-          </Button>
-        </div>
+    <Dialog open onOpenChange={(open) => { if (!open) onClose() }}>
+      <DialogContent className="max-w-xl max-h-[80vh] flex flex-col">
+        <DialogHeader>
+          <DialogTitle>Resumo com IA</DialogTitle>
+        </DialogHeader>
 
-        <div className="flex-1 overflow-y-auto p-6">
+        <div className="flex-1 overflow-y-auto py-2">
           {loading && (
-            <div className="flex flex-col items-center justify-center py-8 gap-3">
+            <div className="flex flex-col items-center justify-center py-10 gap-3">
               <Spinner size="lg" />
               <p className="text-sm text-muted-foreground">Gerando resumo com IA...</p>
             </div>
           )}
 
           {error && !loading && (
-            <div className="flex flex-col items-center gap-4">
-              <p className="text-destructive text-sm">{error}</p>
-              <Button variant="outline" onClick={generateSummary} size="sm">
+            <div className="flex flex-col items-center gap-4 py-6">
+              <p className="text-destructive text-sm text-center">{error}</p>
+              <Button variant="outline" size="sm" onClick={generateSummary}>
                 Tentar novamente
               </Button>
             </div>
           )}
 
           {summary && !loading && (
-            <div className="prose prose-sm max-w-none">
-              <p className="whitespace-pre-wrap text-sm leading-relaxed">{summary}</p>
-            </div>
+            <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">{summary}</p>
           )}
         </div>
-      </div>
-    </div>
+
+        <DialogFooter>
+          <Button variant="outline" onClick={onClose}>
+            Fechar
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   )
 }

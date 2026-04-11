@@ -1,7 +1,6 @@
 'use client'
 
 import * as React from 'react'
-import { Sparkles } from 'lucide-react'
 import { Button } from '@/components/atoms/button'
 import { AiSummaryModal } from '@/components/organisms/ai-summary-modal'
 
@@ -20,12 +19,14 @@ export function CommunicationDetailClient({
 
   return (
     <>
-      <div className="flex justify-end">
-        <Button onClick={() => setModalOpen(true)} className="gap-2">
-          <Sparkles className="h-4 w-4" />
-          {initial_summary ? 'Ver resumo por IA' : 'Gerar resumo por IA'}
-        </Button>
-      </div>
+      <Button
+        variant="outline"
+        size="sm"
+        onClick={() => setModalOpen(true)}
+        className="shrink-0"
+      >
+        Resumo
+      </Button>
 
       {modal_open && (
         <AiSummaryModal
