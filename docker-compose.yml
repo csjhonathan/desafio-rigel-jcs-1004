@@ -44,6 +44,7 @@ services:
     env_file: .env
     environment:
       NEXT_PUBLIC_API_URL: http://localhost:${BACKEND_PORT:-3001}
+      API_URL_INTERNAL: http://backend:${BACKEND_PORT:-3001}
       NODE_ENV: development
     ports:
       - "${FRONTEND_PORT:-3000}:3000"
