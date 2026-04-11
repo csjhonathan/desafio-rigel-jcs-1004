@@ -4,8 +4,10 @@ import { z } from 'zod'
 
 const RATE_LIMIT_RETRY_MS = 60_000
 const MAX_429_RETRIES = 5
-/** Pausa mínima entre pedidos de página (ms); reduz 429 ao paginar milhares de páginas de 5 em 5. */
+/** Pausa mínima entre pedidos de página (ms); reduz 429. */
 const DEFAULT_PAGE_DELAY_MS = 800
+/** Máximo de páginas por dia (itensPorPagina=5 → 50 registros com 10 páginas). */
+const DEFAULT_MAX_PAGES_PER_DAY = 10
 
 /** Destinatário: API retorna `polo` (P/A); versões antigas podem usar `tipo`. */
 const recipient_schema = z
@@ -71,6 +73,13 @@ export class PjeApiClient {
     return DEFAULT_PAGE_DELAY_MS
   }
 
+  /** Páginas 1..N por dia (cada uma até 5 itens). */
+  private maxPagesPerDay(): number {
+    const raw = Number(this.config.get('PJE_SYNC_MAX_PAGES_PER_DAY'))
+    if (Number.isFinite(raw) && raw >= 1) return Math.min(100, Math.floor(raw))
+    return DEFAULT_MAX_PAGES_PER_DAY
+  }
+
   private logRateLimit(response: Response) {
     const limit = response.headers.get('x-ratelimit-limit')
     const remaining = response.headers.get('x-ratelimit-remaining')
@@ -131,21 +140,21 @@ export class PjeApiClient {
   }
 
   /**
-   * Lista todas as comunicações de um dia (todas as páginas), **sem** filtrar por tribunal na API.
-   * Usa `itensPorPagina=5` (exigência quando não há outros filtros) e pausa entre páginas para respeitar rate limit.
+   * Lista comunicações de um dia: `pagina` de 1 até no máximo `PJE_SYNC_MAX_PAGES_PER_DAY` (predef. 10),
+   * `itensPorPagina=5` → no máximo 50 registros/dia por defeito. Para antes se a página vier vazia ou incompleta.
    */
   async fetchCommunications(date: Date): Promise<PjeCommunication[]> {
     const date_str = date.toISOString().split('T')[0]
     const items_per_page = 5 as const
+    const max_pages = this.maxPagesPerDay()
 
     const all: PjeCommunication[] = []
-    let page = 1
 
     this.logger.log(
-      `Buscando ${date_str} (itensPorPagina=5 por pedido; pausa ~${this.basePageDelayMs()}ms entre páginas)`,
+      `${date_str}: até ${max_pages} página(s) × 5 itens; pausa ~${this.basePageDelayMs()}ms entre páginas`,
     )
 
-    while (true) {
+    for (let page = 1; page <= max_pages; page++) {
       const params = new URLSearchParams()
       params.set('dataDisponibilizacaoInicio', date_str)
       params.set('dataDisponibilizacaoFim', date_str)
@@ -163,25 +172,17 @@ export class PjeApiClient {
 
       const { items, count } = parsed.data
       if (page === 1 && count != null) {
-        this.logger.log(
-          `PJE count=${count} (total reportado para o dia, não tamanho da página; cada página traz até 5 itens)`,
-        )
-        if (count >= 10_000) {
-          this.logger.warn(
-            'Documentação PJE: consultas com este perfil podem estar limitadas a 10000 resultados; a lista na API pode truncar.',
-          )
-        }
+        this.logger.log(`PJE count=${count} (total reportado para o dia; sync limitada a ${max_pages} páginas)`)
       }
 
       all.push(...items)
 
+      if (items.length === 0) break
       if (items.length < items_per_page) break
-
-      await this.paceBeforeNextPage(response)
-      page++
+      if (page < max_pages) await this.paceBeforeNextPage(response)
     }
 
-    this.logger.log(`Total ${all.length} comunicações em ${date_str} (${page} página(s))`)
+    this.logger.log(`Total ${all.length} comunicações em ${date_str}`)
     return all
   }
 

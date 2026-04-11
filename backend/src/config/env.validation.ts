@@ -10,7 +10,13 @@ const env_schema = z.object({
     const n = Number(v)
     return Number.isFinite(n) ? n : undefined
   }, z.number().min(50).max(30_000).optional()),
-  /** Quantos dias a sincronizar em paralelo no syncLastDays (1–8). Predefinido 2. */
+  /** Máximo de páginas da PJE por dia (5 itens/página). Predefinido 10 → 50 registros/dia. */
+  PJE_SYNC_MAX_PAGES_PER_DAY: z.preprocess((v) => {
+    if (v === '' || v == null) return undefined
+    const n = Number(v)
+    return Number.isFinite(n) ? n : undefined
+  }, z.number().int().min(1).max(100).optional()),
+  /** Quantos dias a sincronizar em paralelo no syncLastDays (1–8). Predefinido 1. */
   PJE_SYNC_DAY_CONCURRENCY: z.preprocess((v) => {
     if (v === '' || v == null) return undefined
     const n = Number(v)
