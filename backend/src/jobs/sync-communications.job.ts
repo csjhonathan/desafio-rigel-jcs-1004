@@ -1,4 +1,5 @@
 import { Injectable, Logger } from '@nestjs/common'
+import { ConfigService } from '@nestjs/config'
 import { Cron } from '@nestjs/schedule'
 import { detectResJudicata } from '../modules/communications/communications.service'
 import { CommunicationsRepository } from '../modules/communications/communications.repository'
@@ -6,6 +7,9 @@ import { PjeApiClient } from '../pje/pje-api.client'
 import { PrismaService } from '../prisma/prisma.service'
 
 const CRON_DAILY_SYNC = '0 1 * * *'
+/** Predefinido 1: menos pressão na PJE; aumentar com PJE_SYNC_DAY_CONCURRENCY se a API aguentar. */
+const DEFAULT_DAY_CONCURRENCY = 1
+const MAX_DAY_CONCURRENCY = 8
 
 @Injectable()
 export class SyncCommunicationsJob {
@@ -15,6 +19,7 @@ export class SyncCommunicationsJob {
     private readonly pjeClient: PjeApiClient,
     private readonly communicationsRepository: CommunicationsRepository,
     private readonly prisma: PrismaService,
+    private readonly config: ConfigService,
   ) {}
 
   @Cron(CRON_DAILY_SYNC, { name: 'daily_sync' })
@@ -51,6 +56,8 @@ export class SyncCommunicationsJob {
           })),
         })
 
+        console.log(`✅ Comunicação ${item.id} sincronizada`)
+
         total_synced++
       }
 
@@ -64,6 +71,7 @@ export class SyncCommunicationsJob {
     } catch (err) {
       error_message = (err as Error).message
       this.logger.error('Erro na sincronização:', error_message)
+      this.logger.error(err)
 
       await this.prisma.syncLog.create({
         data: { success: false, total_synced, error_message },
@@ -75,12 +83,37 @@ export class SyncCommunicationsJob {
 
   async syncLastDays(days: number): Promise<{ success: boolean; total_synced: number }> {
     let total_synced = 0
+    const anchor = new Date()
+    const last_dates: Date[] = []
 
     for (let i = 1; i <= days; i++) {
-      const date = new Date()
+      const date = new Date(anchor)
       date.setDate(date.getDate() - i)
-      const result = await this.syncForDate(date)
-      total_synced += result.total_synced
+      last_dates.push(date)
+    }
+
+    const raw = Number(this.config.get('PJE_SYNC_DAY_CONCURRENCY'))
+    const day_concurrency = Math.min(
+      MAX_DAY_CONCURRENCY,
+      Math.max(
+        1,
+        Number.isFinite(raw) && raw >= 1 ? Math.floor(raw) : DEFAULT_DAY_CONCURRENCY,
+      ),
+    )
+
+    this.logger.log(
+      `📡 Últimos ${days} dias (ontem → -${days}d), até ${day_concurrency} dia(s) em paralelo: ${last_dates.map((d) => d.toISOString().slice(0, 10)).join(', ')}`,
+    )
+
+    for (let i = 0; i < last_dates.length; i += day_concurrency) {
+      const batch = last_dates.slice(i, i + day_concurrency)
+      const batch_no = Math.floor(i / day_concurrency) + 1
+      const batches = Math.ceil(last_dates.length / day_concurrency)
+      this.logger.log(
+        `Lote ${batch_no}/${batches}: ${batch.map((d) => d.toISOString().slice(0, 10)).join(', ')}`,
+      )
+      const results = await Promise.all(batch.map((date) => this.syncForDate(date)))
+      for (const r of results) total_synced += r.total_synced
     }
 
     return { success: true, total_synced }
