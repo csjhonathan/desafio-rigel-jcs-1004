@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common'
 import { Prisma } from '@prisma/client'
+import { addCalendarDaysYmd, brazilCivilDayStartUtc } from '../../common/brazil-calendar-day'
 import { PrismaService } from '../../prisma/prisma.service'
 import { FilterCommunicationsDto } from './dto/filter-communications.dto'
 
@@ -19,8 +20,13 @@ export class CommunicationsRepository {
 
     if (filters.start_date || filters.end_date) {
       where.available_at = {}
-      if (filters.start_date) where.available_at.gte = new Date(filters.start_date)
-      if (filters.end_date) where.available_at.lte = new Date(filters.end_date)
+      if (filters.start_date) {
+        where.available_at.gte = brazilCivilDayStartUtc(filters.start_date)
+      }
+      if (filters.end_date) {
+        const endExclusiveYmd = addCalendarDaysYmd(filters.end_date, 1)
+        where.available_at.lt = brazilCivilDayStartUtc(endExclusiveYmd)
+      }
     }
 
     if (filters.tribunal) {
