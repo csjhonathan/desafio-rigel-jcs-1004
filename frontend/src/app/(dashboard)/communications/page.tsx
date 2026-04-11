@@ -1,0 +1,75 @@
+'use client'
+
+import * as React from 'react'
+import { useSession } from 'next-auth/react'
+import { CommunicationTable } from '@/components/organisms/communication-table'
+import { FilterBar } from '@/components/molecules/filter-bar'
+import { Pagination } from '@/components/molecules/pagination'
+import { api } from '@/lib/api'
+import { Communication, CommunicationFilters, PaginatedResponse } from '@/types'
+
+const DEFAULT_FILTERS: CommunicationFilters = {
+  page: 1,
+  limit: 20,
+}
+
+export default function CommunicationsPage() {
+  const { data: session } = useSession()
+  const [filters, setFilters] = React.useState<CommunicationFilters>(DEFAULT_FILTERS)
+  const [result, setResult] = React.useState<PaginatedResponse<Communication> | null>(null)
+  const [loading, setLoading] = React.useState(true)
+  const [error, setError] = React.useState<string | null>(null)
+
+  const token = (session as any)?.access_token
+
+  React.useEffect(() => {
+    if (!token) return
+    fetchCommunications()
+  }, [filters, token])
+
+  async function fetchCommunications() {
+    setLoading(true)
+    setError(null)
+    try {
+      const data = await api.communications.list(filters, token)
+      setResult(data)
+    } catch (err) {
+      setError((err as Error).message)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-6">
+      <div>
+        <h1 className="text-2xl font-bold">Comunicações Processuais</h1>
+        <p className="text-sm text-muted-foreground mt-1">
+          Comunicações do Diário de Justiça Eletrônico Nacional
+        </p>
+      </div>
+
+      <FilterBar
+        filters={filters}
+        onChange={setFilters}
+        onReset={() => setFilters(DEFAULT_FILTERS)}
+      />
+
+      <CommunicationTable
+        data={result?.data ?? []}
+        loading={loading}
+        error={error}
+      />
+
+      {result && result.meta.total_pages > 1 && (
+        <Pagination
+          page={result.meta.page}
+          total_pages={result.meta.total_pages}
+          total={result.meta.total}
+          limit={result.meta.limit}
+          onPageChange={(page) => setFilters((f) => ({ ...f, page }))}
+        />
+      )}
+    </div>
+  )
+}
