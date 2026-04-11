@@ -242,7 +242,7 @@ A estrutura de componentes segue o padrão **Atomic Design** com três níveis:
 
 - **atoms/** — elementos indivisíveis de UI: `Button`, `Input`, `Badge`, `Spinner`, `Label`
 - **molecules/** — composições de atoms com propósito claro: `SearchField`, `FilterBar`, `FormField`, `Pagination`
-- **organisms/** — blocos completos de interface: `CommunicationTable`, `CommunicationCard`, `AISummaryModal`, `AuthForm`
+- **organisms/** — blocos completos de interface: `CommunicationTable`, `CommunicationCard`, `AISummaryModal`
 
 As páginas (`app/**/page.tsx`) apenas importam organisms. Organisms importam molecules. Molecules importam atoms.
 
