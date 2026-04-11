@@ -2,7 +2,6 @@
 
 import * as React from 'react'
 import Image from 'next/image'
-import { Clock } from 'lucide-react'
 
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (

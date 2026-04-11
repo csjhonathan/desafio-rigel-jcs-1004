@@ -29,6 +29,12 @@ As **páginas** continuam a donas da validação (ex. cadastro: e-mail, tamanho 
 - UI base do Shadcn vive em `components/ui/`; as **páginas e features** importam **`@/components/atoms/*`** (wrappers), não o `ui/` diretamente — alinhado às regras do repositório.
 - Novos atoms devem seguir o mesmo critério: só criar quando o padrão se **repete** ou quando encapsula comportamento transversal (como o toggle de senha).
 
+## Layout do dashboard (sidebar)
+
+Removemos o botão com o ícone `paper-plane` para `/communications` porque repetia o destino do atalho “Início” (Home) **sem** nenhuma função clara para ele no Layout.
+
+O **abrir/fechar** do menu lateral fica num botão no **header**, à esquerda da logo (`DashboardShell`). Com o menu **aberto**, “Início” mostra ícone + texto; **fechado**, só o ícone (com `title="Início"`). A largura do `aside` e o texto usam transição suave (`transition`, ~300 ms). Novas entradas na sidebar devem seguir o mesmo padrão quando expandido.
+
 ## Problema → direção
 
 | Situação | Direção |

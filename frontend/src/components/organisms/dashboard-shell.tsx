@@ -1,0 +1,108 @@
+'use client'
+
+import * as React from 'react'
+import Link from 'next/link'
+import Image from 'next/image'
+import { usePathname } from 'next/navigation'
+import { ChevronLeft, ChevronRight, Home, Menu, PanelLeft, PanelRight } from 'lucide-react'
+import { UserMenu } from '@/components/molecules/user-menu'
+import { cn } from '@/lib/utils'
+
+const SIDEBAR_OPEN_W = 'w-52'
+const SIDEBAR_CLOSED_W = 'w-14'
+
+interface DashboardShellProps {
+  initials: string
+  children: React.ReactNode
+}
+
+function is_nav_active(pathname: string, href: string): boolean {
+  if (pathname === href) return true
+  if (href !== '/' && pathname.startsWith(`${href}/`)) return true
+  return false
+}
+
+export function DashboardShell({ initials, children }: DashboardShellProps) {
+  const pathname = usePathname()
+  const [sidebar_open, setSidebarOpen] = React.useState(false)
+
+  const home_href = '/communications'
+  const home_active = is_nav_active(pathname, home_href)
+
+  return (
+    <div className="min-h-screen flex flex-col bg-gray-50">
+      <header className="h-14 border-b bg-white sticky top-0 z-20 flex items-center justify-between px-4 sm:px-6">
+        <div className="flex items-center min-w-0 gap-1">
+          <button
+            type="button"
+            onClick={() => setSidebarOpen((v) => !v)}
+            className="shrink-0 p-2 rounded-lg hover:bg-gray-100 hover:text-gray-900 transition-colors"
+            aria-label={sidebar_open ? 'Fechar menu lateral' : 'Abrir menu lateral'}
+            aria-expanded={sidebar_open}
+            aria-controls="dashboard-sidebar"
+          >
+            {sidebar_open ? (
+              <PanelLeft className="w-5 h-5" aria-hidden />
+            ) : (
+              <PanelRight className="w-5 h-5" aria-hidden />
+            )}
+          </button>
+
+          <Link href="/communications" className="flex items-center gap-2 min-w-0">
+            <Image
+              src="/logo-dark.png"
+              alt="JusCash logo"
+              width={100}
+              height={100}
+              className="object-cover object-center"
+              priority
+            />
+          </Link>
+        </div>
+
+        <UserMenu initials={initials} />
+      </header>
+
+      <div className="flex flex-1 min-h-0">
+        <aside
+          id="dashboard-sidebar"
+          className={cn(
+            'border-r bg-white flex flex-col shrink-0 sticky top-14 self-start h-[calc(100vh-3.5rem)] transition-[width] duration-300 ease-out overflow-hidden',
+            sidebar_open ? SIDEBAR_OPEN_W : SIDEBAR_CLOSED_W,
+          )}
+        >
+          <nav
+            className={cn(
+              'flex flex-col pt-4 gap-1',
+              sidebar_open ? 'px-2' : 'px-0 items-center',
+            )}
+          >
+            <Link
+              href={home_href}
+              title={sidebar_open ? undefined : 'Início'}
+              aria-current={home_active ? 'page' : undefined}
+              className={cn(
+                'flex items-center rounded-lg transition-colors',
+                home_active
+                  ? 'bg-gray-100 text-gray-900 font-medium'
+                  : 'text-gray-500 hover:bg-gray-100 hover:text-gray-900',
+                sidebar_open
+                  ? 'gap-3 px-3 py-2.5 w-full justify-start min-w-0'
+                  : 'size-10 shrink-0 justify-center',
+              )}
+            >
+              <Home className="w-5 h-5 shrink-0" aria-hidden />
+              {sidebar_open ? (
+                <span className="text-sm font-medium whitespace-nowrap min-w-0 truncate">
+                  Início
+                </span>
+              ) : null}
+            </Link>
+          </nav>
+        </aside>
+
+        <main className="flex-1 min-w-0 p-6">{children}</main>
+      </div>
+    </div>
+  )
+}
