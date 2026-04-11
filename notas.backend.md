@@ -1,6 +1,6 @@
-# Notas de backend — API PJE (Comunica)
+# Notas de backend
 
-Registo de impedimentos técnicos e decisões. *(Uso de IA: documentar na entrega do desafio — implementação, Docker, alinhamento ao swagger.)*
+Registo de impedimentos técnicos e decisões.
 
 ## Componentes
 
