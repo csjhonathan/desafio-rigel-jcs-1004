@@ -8,6 +8,12 @@ O desafio pedia comunicações dos **últimos 20 dias**, não **todas** as comun
 
 Se no futuro quiserem **mais volume**, basta subir esse teto — aceitando mais chamadas à PJE e maior risco de `429` (ajustar `PJE_PAGE_DELAY_MS` e concorrência de dias em conformidade).
 
+## Filtro `start_date` / `end_date` (comunicações)
+
+**Problema:** Com `new Date('YYYY-MM-DD')`, o motor trata a data como **meia-noite UTC**. Em Brasília isso cai no **fim da noite do dia anterior** (ex.: `2026-04-09` → `2026-04-09T00:00:00.000Z` = 08/04 21:00 BRT). O `gte` desse valor incluía registros ainda “do dia 08” na UI.
+
+**Solução:** Interpretar `YYYY-MM-DD` como **dia civil em Brasília** (`T00:00:00-03:00`, offset fixo; sem horário de verão no Brasil desde 2019). Limite superior com **`lt` no início do dia seguinte** em BRT (intervalo meio-aberto), em vez de `lte` na mesma meia-noite UTC. DTO restringe o formato a `YYYY-MM-DD` para alinhar com esse contrato. Ver `brazil-calendar-day.ts` e `CommunicationsRepository.findAll`.
+
 ## Componentes
 
 | Peça | Notas |
