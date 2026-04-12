@@ -38,9 +38,11 @@ model Recipient {
 }
 
 model SyncLog {
-  id            String   @id @default(uuid())
-  executed_at   DateTime @default(now())
-  success       Boolean
-  total_synced  Int      @default(0)
-  error_message String?
+  id             String    @id @default(uuid())
+  started_at     DateTime  @default(now())
+  ended_at       DateTime?
+  success        Boolean
+  total_fetched  Int       @default(0)
+  total_stored   Int       @default(0)
+  error_message  String?
 }
