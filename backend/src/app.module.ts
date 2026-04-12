@@ -11,6 +11,7 @@ import { CommunicationsModule } from './modules/communications/communications.mo
 import { AiModule } from './modules/ai/ai.module'
 import { PjeModule } from './pje/pje.module'
 import { JobsModule } from './jobs/jobs.module'
+import { SyncModule } from './modules/sync/sync.module'
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { JobsModule } from './jobs/jobs.module'
     AiModule,
     PjeModule,
     JobsModule,
+    SyncModule,
   ],
   providers: [
     {

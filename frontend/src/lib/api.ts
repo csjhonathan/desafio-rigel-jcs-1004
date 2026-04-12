@@ -85,4 +85,12 @@ export const api = {
         token,
       }),
   },
+
+  sync: {
+    trigger: (token: string) =>
+      request<{ success: boolean; total_synced: number; date: string; message: string }>(
+        '/sync/trigger',
+        { method: 'POST', token },
+      ),
+  },
 }

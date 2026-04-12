@@ -4,8 +4,9 @@ import * as React from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
-import { ChevronLeft, ChevronRight, Home, Menu, PanelLeft, PanelRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Home, Menu, PanelLeft, PanelRight, Send } from 'lucide-react'
 import { UserMenu } from '@/components/molecules/user-menu'
+import { SyncTriggerModal } from '@/components/organisms/sync-trigger-modal'
 import { cn } from '@/lib/utils'
 
 const SIDEBAR_OPEN_W = 'w-52'
@@ -25,6 +26,7 @@ function is_nav_active(pathname: string, href: string): boolean {
 export function DashboardShell({ initials, children }: DashboardShellProps) {
   const pathname = usePathname()
   const [sidebar_open, setSidebarOpen] = React.useState(false)
+  const [sync_modal_open, setSyncModalOpen] = React.useState(false)
 
   const home_href = '/communications'
   const home_active = is_nav_active(pathname, home_href)
@@ -101,8 +103,32 @@ export function DashboardShell({ initials, children }: DashboardShellProps) {
                 </span>
               ) : null}
             </Link>
+
+            <button
+              type="button"
+              title={sidebar_open ? undefined : 'Sincronizar'}
+              onClick={() => setSyncModalOpen(true)}
+              className={cn(
+                'flex items-center rounded-lg transition-colors text-gray-500 hover:bg-gray-100 hover:text-gray-900',
+                {
+                  'gap-3 px-3 py-2.5 w-full justify-start min-w-0': sidebar_open,
+                  'size-10 shrink-0 justify-center': !sidebar_open,
+                },
+              )}
+            >
+              <Send className="w-5 h-5 shrink-0" aria-hidden />
+              {sidebar_open ? (
+                <span className="text-sm font-medium whitespace-nowrap min-w-0 truncate">
+                  Sincronizar
+                </span>
+              ) : null}
+            </button>
           </nav>
         </aside>
+
+        {sync_modal_open && (
+          <SyncTriggerModal onClose={() => setSyncModalOpen(false)} />
+        )}
 
         <main className="flex-1 min-w-0 p-6">{children}</main>
       </div>
