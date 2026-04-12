@@ -1,0 +1,13 @@
+{
+  "name": "pje-proxy",
+  "version": "1.0.0",
+  "description": "Proxy reverso residencial para a API do PJE",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node --watch index.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
