@@ -49,3 +49,13 @@ export interface AuthResponse {
   access_token: string
   user: User
 }
+
+export interface SyncLog {
+  id: string
+  started_at: string
+  ended_at: string | null
+  success: boolean
+  total_fetched: number
+  total_stored: number
+  error_message: string | null
+}

@@ -1,4 +1,4 @@
-import { AuthResponse, Communication, CommunicationFilters, PaginatedResponse } from '@/types'
+import { AuthResponse, Communication, CommunicationFilters, PaginatedResponse, SyncLog } from '@/types'
 
 /** Browser: URL no host. Servidor (RSC, NextAuth): dentro do Docker use API_URL_INTERNAL (ex.: http://backend:3001). */
 function getApiBaseUrl(): string {
@@ -92,5 +92,8 @@ export const api = {
         '/sync/trigger',
         { method: 'POST', token, body: JSON.stringify({ date }) },
       ),
+
+    logs: (token: string) =>
+      request<SyncLog[]>('/sync/logs', { token }),
   },
 }

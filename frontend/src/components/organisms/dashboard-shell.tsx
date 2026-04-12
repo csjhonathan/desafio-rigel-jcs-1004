@@ -4,7 +4,7 @@ import * as React from 'react'
 import Link from 'next/link'
 import Image from 'next/image'
 import { usePathname } from 'next/navigation'
-import { ChevronLeft, ChevronRight, Home, Menu, PanelLeft, PanelRight, Send } from 'lucide-react'
+import { Home, PanelLeft, PanelRight, ScrollText, Send } from 'lucide-react'
 import { UserMenu } from '@/components/molecules/user-menu'
 import { SyncTriggerModal } from '@/components/organisms/sync-trigger-modal'
 import { cn } from '@/lib/utils'
@@ -30,6 +30,8 @@ export function DashboardShell({ initials, children }: DashboardShellProps) {
 
   const home_href = '/communications'
   const home_active = is_nav_active(pathname, home_href)
+  const logs_href = '/sync-logs'
+  const logs_active = is_nav_active(pathname, logs_href)
 
   return (
     <div className="min-h-screen flex flex-col bg-gray-50">
@@ -123,6 +125,28 @@ export function DashboardShell({ initials, children }: DashboardShellProps) {
                 </span>
               ) : null}
             </button>
+
+            <Link
+              href={logs_href}
+              title={sidebar_open ? undefined : 'Logs de sync'}
+              aria-current={logs_active ? 'page' : undefined}
+              className={cn(
+                'flex items-center rounded-lg transition-colors',
+                {
+                  'bg-gray-100 text-gray-900 font-medium': logs_active,
+                  'text-gray-500 hover:bg-gray-100 hover:text-gray-900': !logs_active,
+                  'gap-3 px-3 py-2.5 w-full justify-start min-w-0': sidebar_open,
+                  'size-10 shrink-0 justify-center': !sidebar_open,
+                },
+              )}
+            >
+              <ScrollText className="w-5 h-5 shrink-0" aria-hidden />
+              {sidebar_open ? (
+                <span className="text-sm font-medium whitespace-nowrap min-w-0 truncate">
+                  Logs de sync
+                </span>
+              ) : null}
+            </Link>
           </nav>
         </aside>
 
