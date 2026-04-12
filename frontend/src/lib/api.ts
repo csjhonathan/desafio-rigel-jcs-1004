@@ -87,10 +87,10 @@ export const api = {
   },
 
   sync: {
-    trigger: (token: string) =>
-      request<{ success: boolean; total_synced: number; date: string; message: string }>(
+    trigger: (date: string, token: string) =>
+      request<{ success: boolean; date: string; message: string }>(
         '/sync/trigger',
-        { method: 'POST', token },
+        { method: 'POST', token, body: JSON.stringify({ date }) },
       ),
   },
 }

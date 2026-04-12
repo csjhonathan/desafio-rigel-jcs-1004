@@ -42,8 +42,8 @@ export class SyncCommunicationsJob {
    * Um dia civil em Brasília (`YYYY-MM-DD`) com cap do seed (`PJE_SYNC_MAX_PAGES_PER_DAY`).
    * Usado por `syncLastDays` / seed.
    */
-  async syncForDate(ymd: string): Promise<{ success: boolean; total_synced: number }> {
-    return this.syncDay(ymd, undefined)
+  async syncForDate(ymd: string, all_pages = false): Promise<{ success: boolean; total_synced: number }> {
+    return this.syncDay(ymd, all_pages ? { all_pages: true } : undefined)
   }
 
   private async syncDay(

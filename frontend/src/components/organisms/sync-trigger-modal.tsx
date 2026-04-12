@@ -18,33 +18,34 @@ interface SyncTriggerModalProps {
   onClose: () => void
 }
 
-type SyncState = 'running' | 'success' | 'error'
+type SyncState = 'idle' | 'running' | 'success' | 'error'
+
+function yesterdayBrtYmd(): string {
+  const brt_now = new Date(Date.now() - 3 * 60 * 60 * 1000)
+  brt_now.setUTCDate(brt_now.getUTCDate() - 1)
+  return brt_now.toISOString().split('T')[0]
+}
+
+function todayBrtYmd(): string {
+  return new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString().split('T')[0]
+}
 
 export function SyncTriggerModal({ onClose }: SyncTriggerModalProps) {
   const { data: session } = useSession()
   const token = (session as any)?.access_token ?? ''
 
-  const [state, setState] = React.useState<SyncState>('running')
-  const [result, setResult] = React.useState<{
-    total_synced: number
-    date: string
-    message: string
-  } | null>(null)
+  const [state, setState] = React.useState<SyncState>('idle')
+  const [selected_date, setSelectedDate] = React.useState(yesterdayBrtYmd())
   const [error_message, setErrorMessage] = React.useState<string | null>(null)
 
-  React.useEffect(() => {
-    runSync()
-  }, [])
-
-  async function runSync() {
+  async function handleStart() {
     setState('running')
-    setResult(null)
     setErrorMessage(null)
 
     try {
-      const data = await api.sync.trigger(token)
-      setResult({ total_synced: data.total_synced, date: data.date, message: data.message })
-      setState(data.success ? 'success' : 'error')
+      await api.sync.trigger(selected_date, token)
+      setState('success')
+      setTimeout(onClose, 3000)
     } catch (err) {
       setErrorMessage((err as Error).message)
       setState('error')
@@ -52,28 +53,46 @@ export function SyncTriggerModal({ onClose }: SyncTriggerModalProps) {
   }
 
   return (
-    <Dialog open onOpenChange={(open) => { if (!open) onClose() }}>
+    <Dialog open onOpenChange={(open) => { if (!open && state !== 'running') onClose() }}>
       <DialogContent className="max-w-sm">
         <DialogHeader>
           <DialogTitle>Sincronização manual</DialogTitle>
         </DialogHeader>
 
         <div className="py-4">
+          {state === 'idle' && (
+            <div className="flex flex-col gap-3">
+              <label className="text-sm font-medium text-gray-700">
+                Data para sincronizar
+              </label>
+              <input
+                type="date"
+                value={selected_date}
+                max={todayBrtYmd()}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2"
+              />
+            </div>
+          )}
+
           {state === 'running' && (
             <div className="flex flex-col items-center gap-3 py-4">
               <Spinner size="lg" />
               <p className="text-sm text-muted-foreground text-center">
-                Sincronizando comunicações de ontem com a PJE...
+                Iniciando sincronização...
               </p>
             </div>
           )}
 
-          {state === 'success' && result && (
+          {state === 'success' && (
             <div className="flex flex-col items-center gap-3 py-2">
               <CheckCircle className="h-10 w-10 text-green-500" />
               <div className="text-center">
-                <p className="font-semibold text-gray-900">{result.total_synced} comunicações salvas</p>
-                <p className="text-sm text-muted-foreground mt-1">Data: {result.date}</p>
+                <p className="font-semibold text-gray-900">Sincronização iniciada!</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  As comunicações de {selected_date} estão sendo importadas em segundo plano.
+                </p>
+                <p className="text-xs text-muted-foreground mt-2">Fechando em 3s...</p>
               </div>
             </div>
           )}
@@ -82,11 +101,9 @@ export function SyncTriggerModal({ onClose }: SyncTriggerModalProps) {
             <div className="flex flex-col items-center gap-3 py-2">
               <XCircle className="h-10 w-10 text-destructive" />
               <div className="text-center">
-                <p className="font-semibold text-destructive">Erro na sincronização</p>
-                {(error_message || result?.message) && (
-                  <p className="text-sm text-muted-foreground mt-1">
-                    {error_message ?? result?.message}
-                  </p>
+                <p className="font-semibold text-destructive">Erro ao iniciar sincronização</p>
+                {error_message && (
+                  <p className="text-sm text-muted-foreground mt-1">{error_message}</p>
                 )}
               </div>
             </div>
@@ -94,14 +111,27 @@ export function SyncTriggerModal({ onClose }: SyncTriggerModalProps) {
         </div>
 
         <DialogFooter className="gap-2">
-          {state === 'error' && (
-            <Button variant="outline" size="sm" onClick={runSync}>
-              Tentar novamente
-            </Button>
+          {state === 'idle' && (
+            <>
+              <Button variant="outline" onClick={onClose}>
+                Cancelar
+              </Button>
+              <Button onClick={handleStart} disabled={!selected_date}>
+                Iniciar sincronização
+              </Button>
+            </>
           )}
-          <Button variant="outline" onClick={onClose} disabled={state === 'running'}>
-            Fechar
-          </Button>
+
+          {state === 'error' && (
+            <>
+              <Button variant="outline" size="sm" onClick={handleStart}>
+                Tentar novamente
+              </Button>
+              <Button variant="outline" onClick={onClose}>
+                Fechar
+              </Button>
+            </>
+          )}
         </DialogFooter>
       </DialogContent>
     </Dialog>

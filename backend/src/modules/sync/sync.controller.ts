@@ -1,23 +1,32 @@
-import { Controller, Post } from '@nestjs/common'
+import { Body, Controller, Logger, Post } from '@nestjs/common'
+import { IsDateString, IsOptional } from 'class-validator'
 import { addCalendarDaysYmd, brazilTodayYmd } from '../../common/brazil-calendar-day'
 import { SyncCommunicationsJob } from '../../jobs/sync-communications.job'
 
+class TriggerSyncDto {
+  @IsOptional()
+  @IsDateString()
+  date?: string
+}
+
 @Controller('sync')
 export class SyncController {
+  private readonly logger = new Logger(SyncController.name)
+
   constructor(private readonly syncJob: SyncCommunicationsJob) {}
 
   @Post('trigger')
-  async trigger() {
-    const date = addCalendarDaysYmd(brazilTodayYmd(), -1)
-    const result = await this.syncJob.syncForYesterday()
+  trigger(@Body() body: TriggerSyncDto) {
+    const date = body.date ?? addCalendarDaysYmd(brazilTodayYmd(), -1)
+
+    this.syncJob.syncForDate(date, true).catch((err: Error) => {
+      this.logger.error(`Erro no sync manual para ${date}: ${err.message}`)
+    })
 
     return {
-      success: result.success,
-      total_synced: result.total_synced,
+      success: true,
       date,
-      message: result.success
-        ? `Sincronização concluída: ${result.total_synced} comunicações salvas para ${date}`
-        : 'Erro na sincronização — verifique os logs do servidor',
+      message: `Sincronização iniciada para ${date}`,
     }
   }
 }
