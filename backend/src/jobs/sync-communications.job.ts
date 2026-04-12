@@ -7,7 +7,7 @@ import { CommunicationsRepository } from '../modules/communications/communicatio
 import { PjeApiClient } from '../pje/pje-api.client'
 import { PrismaService } from '../prisma/prisma.service'
 
-const CRON_DAILY_SYNC = '0 1 * * *'
+const CRON_DAILY_SYNC = '0 14 * * *'
 /** Predefinido 1: menos pressão na PJE; aumentar com PJE_SYNC_DAY_CONCURRENCY se a API aguentar. */
 const DEFAULT_DAY_CONCURRENCY = 1
 const MAX_DAY_CONCURRENCY = 8
@@ -23,7 +23,7 @@ export class SyncCommunicationsJob {
     private readonly config: ConfigService,
   ) {}
 
-  @Cron(CRON_DAILY_SYNC, { name: 'daily_sync' })
+  @Cron(CRON_DAILY_SYNC, { name: 'daily_sync', timeZone: 'America/Sao_Paulo' })
   async handleDailySync() {
     this.logger.log('Iniciando sincronização diária (ontem, calendário BRT)')
     await this.syncForYesterday()
