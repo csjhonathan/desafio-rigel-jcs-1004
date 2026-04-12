@@ -83,8 +83,13 @@ export class CommunicationsRepository {
     content?: string
     has_res_judicata: boolean
     recipients: Array<{ name: string; kind: string }>
-  }) {
-    return this.prisma.communication.upsert({
+  }): Promise<{ was_created: boolean }> {
+    const existing = await this.prisma.communication.findUnique({
+      where: { external_id: data.external_id },
+      select: { id: true },
+    })
+
+    await this.prisma.communication.upsert({
       where: { external_id: data.external_id },
       update: {
         process_number: data.process_number,
@@ -107,6 +112,8 @@ export class CommunicationsRepository {
         },
       },
     })
+
+    return { was_created: !existing }
   }
 
   async updateAiSummary(id: string, ai_summary: string) {

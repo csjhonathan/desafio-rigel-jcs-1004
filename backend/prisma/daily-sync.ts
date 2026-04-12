@@ -12,7 +12,7 @@ async function main() {
   const sync_job = app.get(SyncCommunicationsJob)
   const result = await sync_job.syncForYesterday()
 
-  console.log(`✅ Sync concluído: ${result.total_synced} comunicações sincronizadas`)
+  console.log(`✅ Sync concluído: ${result.total_fetched} comunicações sincronizadas`)
 
   await app.close()
 }

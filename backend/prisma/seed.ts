@@ -36,7 +36,7 @@ async function main() {
     const sync_job = app.get(SyncCommunicationsJob)
 
     const result = await sync_job.syncLastDays(PJE_LAST_DAYS_TO_SYNC)
-    console.log(`✅ Seed concluído: ${result.total_synced} comunicações sincronizadas`)
+    console.log(`✅ Seed concluído: ${result.total_fetched} comunicações obtidas, ${result.total_stored} armazenadas`)
     await app.close()
 
   } else {
