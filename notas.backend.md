@@ -56,6 +56,26 @@ Um detalhe que apareceu na prática: o ngrok exibe uma página HTML de aviso ("Y
 
 O proxy e as instruções de setup estão em `pje-proxy/`. Ver também a seção **Proxy PJE** no `README.md`.
 
+## SyncLog — rastreabilidade das execuções
+
+O requisito pedia "registrar log da execução (sucesso, quantidade de registros obtidos, erros)". A implementação inicial atendia no mínimo, mas tinha dois problemas sérios.
+
+**Problema 1: um log por dia, não por execução**
+
+O método `syncDay` criava um `SyncLog` para cada dia processado. No seed de 20 dias, isso gerava 20 entradas — o que tecnicamente até faz sentido do ponto de vista de granularidade, mas não reflete "uma execução do job". A correção foi extrair a criação do log para um wrapper privado `withSyncLog`, e fazer `syncLastDays` chamar o nível interno (`executeSyncDay`) diretamente sem passar pelo wrapper. Assim, cada ponto de entrada público (`syncForYesterday`, `syncForDate`, `syncLastDays`) gera exatamente 1 `SyncLog`, independente de quantos dias processa.
+
+**Problema 2: schema sem timing e sem distinção de contagens**
+
+O schema original só tinha `executed_at` e `total_synced`. Não dava para saber quanto tempo uma execução demorou, nem quantas comunicações eram realmente novas versus atualizações de registros já existentes. Reestruturamos o modelo:
+
+- `executed_at` → `started_at` (criado no início da execução)
+- `ended_at` adicionado (preenchido ao final — nulo enquanto está em andamento)
+- `total_synced` separado em `total_fetched` (obtidos da API do PJE) e `total_stored` (realmente inseridos no banco pela primeira vez)
+
+Para distinguir insert de update no Prisma — que não expõe isso nativamente no `upsert` — fizemos um `findUnique` antes de cada `upsert` no repository. O custo é uma query extra por registro, mas é aceitável para o volume que estamos processando.
+
+O log é criado no início com `success: false` e atualizado ao final com os dados reais. Isso garante que mesmo se o processo for interrompido, existe um registro da tentativa.
+
 ## Problema → mitigação
 
 - **429 / muito tráfego** — pausa entre páginas; poucos dias em paralelo; não `Promise.all` em todos os dias.
