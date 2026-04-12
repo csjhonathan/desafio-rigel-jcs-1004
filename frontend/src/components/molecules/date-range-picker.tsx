@@ -1,8 +1,10 @@
 'use client'
 
 import * as React from 'react'
+import { isSameDay } from 'date-fns'
 import { CalendarIcon } from 'lucide-react'
 import type { DateRange } from 'react-day-picker'
+import { ptBR } from 'react-day-picker/locale'
 import { cn } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import { Calendar } from '@/components/ui/calendar'
@@ -29,6 +31,22 @@ function formatDisplay(date: Date): string {
   }).format(date)
 }
 
+function committedRange(start_date?: string, end_date?: string): DateRange {
+  return {
+    from: start_date ? parseLocalDate(start_date) : undefined,
+    to: end_date ? parseLocalDate(end_date) : undefined,
+  }
+}
+
+function formatRangeLabel(range: DateRange | undefined): string {
+  const from = range?.from
+  const to = range?.to
+  if (!from) return 'Data inicial - Data final'
+  if (!to) return `${formatDisplay(from)} — ...`
+  if (isSameDay(from, to)) return formatDisplay(from)
+  return `${formatDisplay(from)} — ${formatDisplay(to)}`
+}
+
 export interface DateRangePickerProps {
   start_date?: string
   end_date?: string
@@ -42,41 +60,79 @@ export function DateRangePicker({
   onChange,
   className,
 }: DateRangePickerProps) {
-  const range: DateRange = {
-    from: start_date ? parseLocalDate(start_date) : undefined,
-    to: end_date ? parseLocalDate(end_date) : undefined,
+  const [open, setOpen] = React.useState(false)
+  const [draft, setDraft] = React.useState<DateRange | undefined>(undefined)
+
+  const range_committed = committedRange(start_date, end_date)
+
+  function handleOpenChange(next_open: boolean) {
+    setOpen(next_open)
+    if (next_open) {
+      setDraft(committedRange(start_date, end_date))
+    }
   }
 
   function handleSelect(selected: DateRange | undefined) {
-    onChange(
-      selected?.from ? toDateString(selected.from) : undefined,
-      selected?.to ? toDateString(selected.to) : undefined,
-    )
+    if (!selected?.from) {
+      setDraft(undefined)
+      return
+    }
+
+    const from = selected.from
+    const to = selected.to
+    const from_str = toDateString(from)
+
+    if (!to) {
+      setDraft({ from, to: undefined })
+      return
+    }
+
+    if (isSameDay(from, to)) {
+      const completing_single_day =
+        draft?.from != null &&
+        draft.to === undefined &&
+        isSameDay(draft.from, from)
+      if (completing_single_day) {
+        setDraft({ from, to })
+        onChange(from_str, from_str)
+        setOpen(false)
+      } else {
+        setDraft({ from, to: undefined })
+      }
+      return
+    }
+
+    setDraft({ from, to })
+    onChange(from_str, toDateString(to))
+    setOpen(false)
   }
 
-  const label = range.from
-    ? range.to
-      ? `${formatDisplay(range.from)} — ${formatDisplay(range.to)}`
-      : `${formatDisplay(range.from)} — ...`
-    : 'Selecionar período'
+  const range_for_label = open ? draft : range_committed
+  const label = formatRangeLabel(range_for_label)
 
   return (
-    <Popover>
+    <Popover open={open} onOpenChange={handleOpenChange}>
       <PopoverTrigger asChild>
         <Button
           variant="outline"
-          className={cn('justify-start text-left font-normal', !range.from && 'text-muted-foreground', className)}
+          className={cn(
+            'justify-start text-left font-normal',
+            !range_for_label?.from && 'text-muted-foreground',
+            className,
+          )}
         >
           <CalendarIcon className="mr-2 h-4 w-4 shrink-0" />
           {label}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-auto p-0" align="start">
+      <PopoverContent className="w-auto p-0 mr-10" align="start">
         <Calendar
           mode="range"
-          selected={range}
+          locale={ptBR}
+          selected={draft}
           onSelect={handleSelect}
           numberOfMonths={2}
+          fixedWeeks={true}
         />
       </PopoverContent>
     </Popover>

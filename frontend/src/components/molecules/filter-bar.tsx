@@ -11,6 +11,7 @@ import {
   SelectValue,
 } from '@/components/atoms/select'
 import { CommunicationFilters } from '@/types'
+import { Button } from '../atoms/button'
 
 const TRIBUNAIS = [
   'STF', 'STJ', 'TST', 'TSE', 'STM',
@@ -33,7 +34,6 @@ export function FilterBar({ filters, onChange, onReset }: FilterBarProps) {
 
   return (
     <div className="bg-white border rounded-lg p-4 flex flex-wrap gap-3 items-center">
-      {/* Busca por processo */}
       <SearchField
         value={filters.process_number ?? ''}
         onChange={(v) => onChange({ ...filters, process_number: v || undefined, page: 1 })}
@@ -41,18 +41,16 @@ export function FilterBar({ filters, onChange, onReset }: FilterBarProps) {
         className="flex-1 min-w-[240px]"
       />
 
-      {/* Tribunal */}
       <Select
-        value={filters.tribunal ?? '_all'}
+        value={filters.tribunal ?? ''}
         onValueChange={(v) =>
-          onChange({ ...filters, tribunal: v === '_all' ? undefined : v, page: 1 })
+          onChange({ ...filters, tribunal: v || undefined, page: 1 })
         }
       >
         <SelectTrigger className="w-[200px]">
           <SelectValue placeholder="Selecione um tribunal" />
         </SelectTrigger>
         <SelectContent className="max-h-[280px] overflow-y-auto">
-          <SelectItem value="_all">Todos os tribunais</SelectItem>
           {TRIBUNAIS.map((t) => (
             <SelectItem key={t} value={t}>
               {t}
@@ -61,7 +59,6 @@ export function FilterBar({ filters, onChange, onReset }: FilterBarProps) {
         </SelectContent>
       </Select>
 
-      {/* Intervalo de datas */}
       <DateRangePicker
         start_date={filters.start_date}
         end_date={filters.end_date}
@@ -70,15 +67,13 @@ export function FilterBar({ filters, onChange, onReset }: FilterBarProps) {
         }
       />
 
-      {/* Limpar filtros — aparece apenas quando há algum ativo */}
-      {(filters.process_number || filters.tribunal || has_dates) && (
-        <button
-          onClick={onReset}
-          className="text-sm text-muted-foreground hover:text-foreground underline underline-offset-2 whitespace-nowrap"
-        >
-          Limpar filtros
-        </button>
-      )}
+      <Button
+        variant="outline"
+        onClick={onReset}
+        disabled={!(filters.process_number || filters.tribunal || has_dates)}
+      >
+        Limpar filtros
+      </Button>
     </div>
   )
 }

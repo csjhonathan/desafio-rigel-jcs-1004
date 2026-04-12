@@ -4,6 +4,7 @@
 
 @layer base {
   :root {
+    --brand: 160 92% 32%;
     --background: 0 0% 100%;
     --foreground: 222.2 84% 4.9%;
     --card: 0 0% 100%;
@@ -13,7 +14,6 @@
     --popover-border: 214.3 31.8% 91.4%;
     --primary: 221.2 83.2% 53.3%;
     --primary-foreground: 210 40% 98%;
-    /* Brand secondary — #0D4897 */
     --secondary: 214 84% 32%;
     --secondary-foreground: 210 40% 98%;
     --muted: 210 40% 96.1%;
