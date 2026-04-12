@@ -1,7 +1,8 @@
-import { Body, Controller, Logger, Post } from '@nestjs/common'
+import { Body, Controller, Get, Logger, Post } from '@nestjs/common'
 import { IsDateString, IsOptional } from 'class-validator'
 import { addCalendarDaysYmd, brazilTodayYmd } from '../../common/brazil-calendar-day'
 import { SyncCommunicationsJob } from '../../jobs/sync-communications.job'
+import { PrismaService } from '../../prisma/prisma.service'
 
 class TriggerSyncDto {
   @IsOptional()
@@ -13,7 +14,10 @@ class TriggerSyncDto {
 export class SyncController {
   private readonly logger = new Logger(SyncController.name)
 
-  constructor(private readonly syncJob: SyncCommunicationsJob) {}
+  constructor(
+    private readonly syncJob: SyncCommunicationsJob,
+    private readonly prisma: PrismaService,
+  ) {}
 
   @Post('trigger')
   trigger(@Body() body: TriggerSyncDto) {
@@ -28,5 +32,13 @@ export class SyncController {
       date,
       message: `Sincronização iniciada para ${date}`,
     }
+  }
+
+  @Get('logs')
+  async getLogs() {
+    return this.prisma.syncLog.findMany({
+      orderBy: { started_at: 'desc' },
+      take: 100,
+    })
   }
 }
