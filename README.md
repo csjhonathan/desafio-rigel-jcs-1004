@@ -4,6 +4,10 @@ Monorepo fullstack para consulta de comunicações processuais do **Diário de J
 
 **Notas de backend (PJE, Docker, seed, etc.):** [notas.backend.md](./notas.backend.md).
 
+## Deploy
+
+**Frontend:** https://desafio-rigel-jcs-1004-frontend-production.up.railway.app
+
 ## Início rápido
 
 ```bash
