@@ -31,5 +31,4 @@ jobs:
           JWT_SECRET: ${{ secrets.JWT_SECRET }}
           JWT_EXPIRES_IN: 7d
           PJE_API_BASE_URL: https://comunicaapi.pje.jus.br/api/v1
-          PJE_LAST_DAYS_TO_SYNC: 1
-        run: npm run seed
+        run: npm run daily-sync

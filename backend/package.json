@@ -9,6 +9,7 @@
     "start:dev": "nest start --watch",
     "start:prod": "node dist/src/main",
     "seed": "ts-node prisma/seed.ts",
+    "daily-sync": "ts-node prisma/daily-sync.ts",
     "test": "jest",
     "test:e2e": "jest --config ./test/jest-e2e.json",
     "test:cov": "jest --coverage",
