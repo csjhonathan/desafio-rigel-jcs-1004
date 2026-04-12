@@ -73,6 +73,12 @@ export const api = {
     getById: (id: string, token: string) =>
       request<Communication>(`/communications/${id}`, { token }),
 
+    getByProcessNumber: (process_number: string, token: string) =>
+      request<Communication[]>(
+        `/communications/process/${encodeURIComponent(process_number)}`,
+        { token },
+      ),
+
     generateAiSummary: (id: string, token: string) =>
       request<{ ai_summary: string }>(`/communications/${id}/ai-summary`, {
         method: 'POST',

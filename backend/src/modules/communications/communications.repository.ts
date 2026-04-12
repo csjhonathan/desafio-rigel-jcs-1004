@@ -67,9 +67,10 @@ export class CommunicationsRepository {
   }
 
   async findByProcessNumber(process_number: string) {
-    return this.prisma.communication.findFirst({
+    return this.prisma.communication.findMany({
       where: { process_number },
       include: { recipients: true },
+      orderBy: { available_at: 'desc' },
     })
   }
 

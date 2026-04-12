@@ -15,6 +15,12 @@ export class CommunicationsController {
     return this.communicationsService.findAll(filters)
   }
 
+  @Get('process/:process_number')
+  @ApiOperation({ summary: 'Listar comunicações por número de processo' })
+  findByProcessNumber(@Param('process_number') process_number: string) {
+    return this.communicationsService.findAllByProcessNumber(process_number)
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Buscar comunicação por ID' })
   findById(@Param('id') id: string) {

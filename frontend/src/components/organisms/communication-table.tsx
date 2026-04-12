@@ -84,7 +84,7 @@ function CommunicationCard({
   const recipient_names = c.recipients.map((r) => r.name).join(', ')
 
   return (
-    <Link href={`/communications/${c.id}`} className="block group">
+    <Link href={`/process/${encodeURIComponent(c.process_number)}`} className="block group">
       <div className="bg-white border rounded-lg p-5 hover:shadow-sm hover:border-gray-300 transition-all cursor-pointer">
         <div className="flex gap-6">
           {/* Coluna esquerda */}

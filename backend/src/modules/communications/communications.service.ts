@@ -21,6 +21,10 @@ export class CommunicationsService {
     return this.communicationsRepository.findAll(filters)
   }
 
+  async findAllByProcessNumber(process_number: string) {
+    return this.communicationsRepository.findByProcessNumber(process_number)
+  }
+
   async findById(id: string) {
     const communication = await this.communicationsRepository.findById(id)
     if (!communication) throw new NotFoundException(`Comunicação ${id} não encontrada`)
