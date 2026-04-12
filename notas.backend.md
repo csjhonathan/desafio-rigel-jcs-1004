@@ -18,9 +18,11 @@ Se no futuro quiserem **mais volume**, basta subir esse teto — aceitando mais 
 
 | Peça | Notas |
 |------|--------|
-| `PjeApiClient` | Mesmo URL de consulta; `itensPorPagina=5`; `pagina` 1…N. **Cap:** `PJE_SYNC_MAX_PAGES_PER_DAY` (predef. 10 → 50 regs/dia). |
+| `PjeApiClient` | Mesmo URL; `itensPorPagina=5`. **Seed:** cap `PJE_SYNC_MAX_PAGES_PER_DAY` ou `max_pages`. **Cron:** `all_pages` → pagina até esgotar (teto segurança 20 000 pág. no código). |
+| Cron `syncForYesterday` | Só ontem; chama `fetchCommunications(..., { all_pages: true })` — **não** lê `PJE_SYNC_MAX_PAGES_PER_DAY`. |
+| `syncForDate` / `syncLastDays` | Seed: cap do **seed** (`PJE_SYNC_MAX_PAGES_PER_DAY`). |
 | Rate limit | `PJE_PAGE_DELAY_MS`; retentativa após 60s em `429`; cabeçalhos `x-ratelimit-*`. |
-| `syncLastDays` | Lotes de dias: `PJE_SYNC_DAY_CONCURRENCY` (predef. 1, máx. 8). |
+| `syncLastDays` | Dias civis em **BRT** (`brazilTodayYmd` + `addCalendarDaysYmd`); **não inclui hoje**. Lotes: `PJE_SYNC_DAY_CONCURRENCY` (predef. 1, máx. 8). |
 | Seed | Sync só se a base **não** tiver comunicações. Repovoar: `prisma migrate reset` ou lógica extra no `seed.ts`. |
 | Docker seed | Não corre no `CMD` do backend (bloqueava HTTP → healthcheck falhava). Depois do `up`: `docker compose exec backend npm run seed`. |
 

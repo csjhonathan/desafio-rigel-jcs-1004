@@ -6,6 +6,17 @@
  * inclui parte do dia anterior no fuso de Brasília.
  */
 const BRT = '-03:00'
+const BRAZIL_TZ = 'America/Sao_Paulo'
+
+/** Data civil de hoje em Brasília (`YYYY-MM-DD`), para alinhar sync e PJE ao calendário local. */
+export function brazilTodayYmd(at: Date = new Date()): string {
+  return new Intl.DateTimeFormat('sv-SE', {
+    timeZone: BRAZIL_TZ,
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  }).format(at)
+}
 
 export function brazilCivilDayStartUtc(ymd: string): Date {
   return new Date(`${ymd}T00:00:00${BRT}`)

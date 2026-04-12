@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { Cron } from '@nestjs/schedule'
+import { addCalendarDaysYmd, brazilTodayYmd } from '../common/brazil-calendar-day'
 import { detectResJudicata } from '../modules/communications/communications.service'
 import { CommunicationsRepository } from '../modules/communications/communications.repository'
 import { PjeApiClient } from '../pje/pje-api.client'
@@ -24,20 +25,36 @@ export class SyncCommunicationsJob {
 
   @Cron(CRON_DAILY_SYNC, { name: 'daily_sync' })
   async handleDailySync() {
-    this.logger.log('Iniciando sincronização diária de comunicações')
-
-    const yesterday = new Date()
-    yesterday.setDate(yesterday.getDate() - 1)
-
-    await this.syncForDate(yesterday)
+    this.logger.log('Iniciando sincronização diária (ontem, calendário BRT)')
+    await this.syncForYesterday()
   }
 
-  async syncForDate(date: Date): Promise<{ success: boolean; total_synced: number }> {
+  /**
+   * Cron diário: **ontem** em Brasília (`YYYY-MM-DD`), paginação completa na PJE.
+   */
+  async syncForYesterday(): Promise<{ success: boolean; total_synced: number }> {
+    const yesterday_ymd = addCalendarDaysYmd(brazilTodayYmd(), -1)
+    this.logger.log(`Ontem (BRT): ${yesterday_ymd} (paginação completa)`)
+    return this.syncDay(yesterday_ymd, { all_pages: true })
+  }
+
+  /**
+   * Um dia civil em Brasília (`YYYY-MM-DD`) com cap do seed (`PJE_SYNC_MAX_PAGES_PER_DAY`).
+   * Usado por `syncLastDays` / seed.
+   */
+  async syncForDate(ymd: string): Promise<{ success: boolean; total_synced: number }> {
+    return this.syncDay(ymd, undefined)
+  }
+
+  private async syncDay(
+    ymd: string,
+    fetch_options: { max_pages?: number; all_pages?: boolean } | undefined,
+  ): Promise<{ success: boolean; total_synced: number }> {
     let total_synced = 0
     let error_message: string | undefined
 
     try {
-      const items = await this.pjeClient.fetchCommunications(date)
+      const items = await this.pjeClient.fetchCommunications(ymd, fetch_options)
 
       for (const item of items) {
         const has_res_judicata = detectResJudicata(item.texto)
@@ -56,7 +73,7 @@ export class SyncCommunicationsJob {
           })),
         })
 
-        console.log(`✅ Comunicação ${item.id} sincronizada`)
+        this.logger.debug(`Comunicação ${item.id} sincronizada`)
 
         total_synced++
       }
@@ -81,15 +98,17 @@ export class SyncCommunicationsJob {
     }
   }
 
+  /**
+   * Últimos `days` dias civis em **Brasília**, **sem incluir hoje**:
+   * ontem, anteontem, … (equivalente a `addCalendarDaysYmd(hoje_brt, -1)` … `-days`).
+   */
   async syncLastDays(days: number): Promise<{ success: boolean; total_synced: number }> {
     let total_synced = 0
-    const anchor = new Date()
-    const last_dates: Date[] = []
+    const today_brt = brazilTodayYmd()
+    const last_ymds: string[] = []
 
     for (let i = 1; i <= days; i++) {
-      const date = new Date(anchor)
-      date.setDate(date.getDate() - i)
-      last_dates.push(date)
+      last_ymds.push(addCalendarDaysYmd(today_brt, -i))
     }
 
     const raw = Number(this.config.get('PJE_SYNC_DAY_CONCURRENCY'))
@@ -101,18 +120,12 @@ export class SyncCommunicationsJob {
       ),
     )
 
-    this.logger.log(
-      `📡 Últimos ${days} dias (ontem → -${days}d), até ${day_concurrency} dia(s) em paralelo: ${last_dates.map((d) => d.toISOString().slice(0, 10)).join(', ')}`,
-    )
-
-    for (let i = 0; i < last_dates.length; i += day_concurrency) {
-      const batch = last_dates.slice(i, i + day_concurrency)
+    for (let i = 0; i < last_ymds.length; i += day_concurrency) {
+      const batch = last_ymds.slice(i, i + day_concurrency)
       const batch_no = Math.floor(i / day_concurrency) + 1
-      const batches = Math.ceil(last_dates.length / day_concurrency)
-      this.logger.log(
-        `Lote ${batch_no}/${batches}: ${batch.map((d) => d.toISOString().slice(0, 10)).join(', ')}`,
-      )
-      const results = await Promise.all(batch.map((date) => this.syncForDate(date)))
+      const batches = Math.ceil(last_ymds.length / day_concurrency)
+      this.logger.log(`Lote ${batch_no}/${batches}: ${batch.join(', ')}`)
+      const results = await Promise.all(batch.map((ymd) => this.syncForDate(ymd)))
       for (const r of results) total_synced += r.total_synced
     }
 

@@ -1,13 +1,16 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { z } from 'zod'
+import { addCalendarDaysYmd, brazilTodayYmd } from '../common/brazil-calendar-day'
 
 const RATE_LIMIT_RETRY_MS = 60_000
 const MAX_429_RETRIES = 5
 /** Pausa mínima entre pedidos de página (ms); reduz 429. */
 const DEFAULT_PAGE_DELAY_MS = 800
 /** Máximo de páginas por dia (itensPorPagina=5 → 50 registros com 10 páginas). */
-const DEFAULT_MAX_PAGES_PER_DAY = 10
+const DEFAULT_MAX_PAGES_PER_DAY = 30
+/** Teto só para evitar loop infinito se a API se comportar mal (`all_pages`). */
+const SAFETY_MAX_PAGES_PER_DAY = 40
 
 /** Destinatário: API retorna `polo` (P/A); versões antigas podem usar `tipo`. */
 const recipient_schema = z
@@ -57,6 +60,16 @@ const response_schema = z.object({
 })
 
 export type PjeCommunication = z.infer<typeof communication_raw>
+
+export type FetchCommunicationsOptions = {
+  /** Máximo de páginas (5 itens cada). Ignorado se `all_pages` for true. */
+  max_pages?: number
+  /**
+   * Paginar até a PJE devolver página vazia ou com menos de 5 itens (fim natural).
+   * Usado pelo cron (só um dia). Ainda há teto interno `SAFETY_MAX_PAGES_PER_DAY`.
+   */
+  all_pages?: boolean
+}
 
 @Injectable()
 export class PjeApiClient {
@@ -140,21 +153,41 @@ export class PjeApiClient {
   }
 
   /**
-   * Lista comunicações de um dia: `pagina` de 1 até no máximo `PJE_SYNC_MAX_PAGES_PER_DAY` (predef. 10),
-   * `itensPorPagina=5` → no máximo 50 registros/dia por defeito. Para antes se a página vier vazia ou incompleta.
+   * Lista comunicações de um dia civil em Brasília (`YYYY-MM-DD`) ou `Date` (menos fiável; prefira string).
+   * `itensPorPagina=5`, páginas 1…N.
+   * - Sem opções / só `max_pages`: respeita `PJE_SYNC_MAX_PAGES_PER_DAY` ou `max_pages`.
+   * - `all_pages: true`: segue até esgotar (vazia ou menos de 5 itens), com teto de segurança interno.
    */
-  async fetchCommunications(date: Date): Promise<PjeCommunication[]> {
-    const date_str = date.toISOString().split('T')[0]
+  async fetchCommunications(
+    date: Date | string,
+    options?: FetchCommunicationsOptions,
+  ): Promise<PjeCommunication[]> {
+    const date_str =
+      typeof date === 'string'
+        ? (() => {
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+              throw new RangeError(`data inválida (use YYYY-MM-DD): ${date}`)
+            }
+            return date
+          })()
+        : date.toISOString().split('T')[0]
     const items_per_page = 5 as const
-    const max_pages = this.maxPagesPerDay()
+    const all_pages = Boolean(options?.all_pages)
+    const page_limit = all_pages
+      ? SAFETY_MAX_PAGES_PER_DAY
+      : options?.max_pages != null && Number.isFinite(options.max_pages)
+        ? Math.min(100, Math.max(1, Math.floor(options.max_pages)))
+        : this.maxPagesPerDay()
 
     const all: PjeCommunication[] = []
 
     this.logger.log(
-      `${date_str}: até ${max_pages} página(s) × 5 itens; pausa ~${this.basePageDelayMs()}ms entre páginas`,
+      all_pages
+        ? `${date_str}: todas as páginas até esgotar (teto segurança ${page_limit}); pausa ~${this.basePageDelayMs()}ms entre páginas`
+        : `${date_str}: até ${page_limit} página(s) × 5 itens; pausa ~${this.basePageDelayMs()}ms entre páginas`,
     )
 
-    for (let page = 1; page <= max_pages; page++) {
+    for (let page = 1; page <= page_limit; page++) {
       const params = new URLSearchParams()
       params.set('dataDisponibilizacaoInicio', date_str)
       params.set('dataDisponibilizacaoFim', date_str)
@@ -172,14 +205,26 @@ export class PjeApiClient {
 
       const { items, count } = parsed.data
       if (page === 1 && count != null) {
-        this.logger.log(`PJE count=${count} (total reportado para o dia; sync limitada a ${max_pages} páginas)`)
+        this.logger.log(
+          all_pages
+            ? `PJE count=${count} (total reportado para o dia; paginação completa até esgotar)`
+            : `PJE count=${count} (total reportado para o dia; sync limitada a ${page_limit} páginas)`,
+        )
       }
 
       all.push(...items)
 
       if (items.length === 0) break
       if (items.length < items_per_page) break
-      if (page < max_pages) await this.paceBeforeNextPage(response)
+      if (page === page_limit) {
+        if (all_pages && items.length === items_per_page) {
+          this.logger.warn(
+            `Teto de segurança (${page_limit} páginas) atingido em ${date_str}; pode haver mais itens na PJE.`,
+          )
+        }
+        break
+      }
+      await this.paceBeforeNextPage(response)
     }
 
     this.logger.log(`Total ${all.length} comunicações em ${date_str}`)
@@ -188,15 +233,15 @@ export class PjeApiClient {
 
   async fetchLastDays(days: number): Promise<PjeCommunication[]> {
     const all_communications: PjeCommunication[] = []
+    const today_brt = brazilTodayYmd()
 
     for (let i = 1; i <= days; i++) {
-      const date = new Date()
-      date.setDate(date.getDate() - i)
+      const ymd = addCalendarDaysYmd(today_brt, -i)
 
       try {
-        const items = await this.fetchCommunications(date)
+        const items = await this.fetchCommunications(ymd)
         all_communications.push(...items)
-        this.logger.log(`Dia -${i}: ${items.length} comunicações`)
+        this.logger.log(`${ymd} (-${i}d BRT): ${items.length} comunicações`)
         if (i < days) {
           await this.sleep(this.basePageDelayMs() * 2)
         }
