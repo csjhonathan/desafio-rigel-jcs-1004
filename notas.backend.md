@@ -26,6 +26,36 @@ Se no futuro quiserem **mais volume**, basta subir esse teto — aceitando mais 
 | Seed | Sync só se a base **não** tiver comunicações. Repovoar: `prisma migrate reset` ou lógica extra no `seed.ts`. |
 | Docker seed | Não corre no `CMD` do backend (bloqueava HTTP → healthcheck falhava). Depois do `up`: `docker compose exec backend npm run seed`. |
 
+## Bloqueio de IP: Railway/GitHub Actions → PJE
+
+### O problema
+
+Em produção, toda requisição do backend para a API do PJE retornava `403 Forbidden`. Localmente funcionava sem problema nenhum. Depois de alguma investigação, ficou claro que o PJE bloqueia requisições vindas de IPs de datacenters — AWS, GCP, Cloudflare, tc. . O Railway roda em cima de AWS, e o GitHub Actions também. Então qualquer tentativa de chamar a API de lá batia em muro.
+
+A primeira coisa que tentei foi adicionar um `User-Agent` de navegador nas requisições, porque a API claramente esperava uma chamada de browser. Ajudou a eliminar outros erros, mas o `403` continuava — não era só o header, era mesmo o IP.
+
+### Tentativas que não funcionaram
+
+**Cloudflare Workers:** A ideia era criar um proxy no Worker que repassasse as chamadas ao PJE. Parecia ótimo no papel — URL fixa, gratuito, zero manutenção. O problema é que o Worker roda nos servidores da própria Cloudflare, que também são datacenter. O PJE viu `asOrganization: "Amazon Technologies Inc."` no log (o IP original era do Railway) e bloqueou do mesmo jeito. Trocar de datacenter para outro datacenter não resolve nada.
+
+**GitHub Actions como proxy de sync:** Não funcionou, pois também bateu no problema de ter o ip bloqueado, então não satisfez ao propósito.
+
+### A solução: proxy residencial via ngrok
+
+A única (gratuita e rápida) que consegui pensar foi fazer a requisição partir de um IP residencial — aquele que o PJE não bloqueia. Tenho um PC em casa que pode ficar ligado o tempo todo, então montei um proxy reverso mínimo em Node.js (sem dependências externas, só módulos nativos) que roda lá.
+
+O fluxo ficou assim:
+
+```
+Railway → ngrok URL → PC residencial (IP residencial) → PJE ✅
+```
+
+O ngrok expõe o proxy local, apesar de o domínio não ser fixo, não será problema pois esse PC fica ligado 24/7, obviamente em outros cenários teriamos que pensar numa solução pra isso. Então configurei esse domínio no Railway como `PJE_API_BASE_URL` e o backend não precisou mudar em nada — ele continua chamando o mesmo endpoint, só que agora o destino final é o PC em casa.
+
+Um detalhe que apareceu na prática: o ngrok exibe uma página HTML de aviso ("You are about to visit...") para requisições que não incluem o header `ngrok-skip-browser-warning`. O backend tentava fazer parse de JSON e recebia HTML — `Unexpected token 'Y', "You are ab"...`. A correção foi adicionar esse header nas requisições do `PjeApiClient`. O PJE ignora headers desconhecidos, então não tem efeito colateral.
+
+O proxy e as instruções de setup estão em `pje-proxy/`. Ver também a seção **Proxy PJE** no `README.md`.
+
 ## Problema → mitigação
 
 - **429 / muito tráfego** — pausa entre páginas; poucos dias em paralelo; não `Promise.all` em todos os dias.

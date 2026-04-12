@@ -8,6 +8,56 @@ Monorepo fullstack para consulta de comunicações processuais do **Diário de J
 
 **Frontend:** https://desafio-rigel-jcs-1004-frontend-production.up.railway.app
 
+## Proxy PJE (`pje-proxy/`)
+
+A API do PJE bloqueia requisições vindas de IPs de datacenters (Railway, GitHub Actions, Cloudflare Workers). Como o ambiente local (IP residencial) não é bloqueado, o projeto inclui um **proxy reverso standalone** em `pje-proxy/` que deve rodar em um PC doméstico ligado continuamente.
+
+O fluxo é:
+
+```
+Railway (backend) → ngrok URL → PC residencial (proxy) → PJE API
+```
+
+### Pré-requisitos
+
+- **Node.js 18+** instalado no PC que vai rodar o proxy
+- Conta gratuita no [ngrok](https://ngrok.com) com o token configurado
+
+### Como rodar
+
+```bash
+# No PC residencial, dentro da pasta pje-proxy/
+node index.js
+# proxy sobe em http://localhost:3333
+```
+
+### Expor via ngrok
+
+```bash
+# Configure o token uma única vez
+ngrok config add-authtoken SEU_TOKEN
+
+# Use o domínio estático gratuito (1 por conta, não muda entre restarts)
+ngrok http --hostname=SEU-DOMINIO.ngrok-free.app 3333
+```
+
+### Configurar no Railway
+
+Defina a variável de ambiente do backend:
+
+```
+PJE_API_BASE_URL=https://SEU-DOMINIO.ngrok-free.app/api/v1
+```
+
+### Verificar
+
+```bash
+curl https://SEU-DOMINIO.ngrok-free.app/health
+# {"status":"ok","target":"https://comunicaapi.pje.jus.br"}
+```
+
+---
+
 ## Início rápido
 
 ```bash
