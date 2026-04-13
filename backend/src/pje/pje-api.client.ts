@@ -1,12 +1,14 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { z } from 'zod'
-import { addCalendarDaysYmd, brazilTodayYmd } from '../common/brazil-calendar-day'
 
 const RATE_LIMIT_RETRY_MS = 60_000
 const MAX_429_RETRIES = 5
 /** Pausa mínima entre pedidos de página (ms); reduz 429. */
 const DEFAULT_PAGE_DELAY_MS = 800
+const ITEMS_PER_PAGE = 5
+/** Predefinido se `PJE_COMMUNICATION_LIMIT_PER_DAY` não estiver definido. */
+const DEFAULT_COMMUNICATION_LIMIT_PER_DAY = 2500
 
 /** Destinatário: API retorna `polo` (P/A); versões antigas podem usar `tipo`. */
 const recipient_schema = z
@@ -55,22 +57,6 @@ const response_schema = z.object({
   items: z.array(communication_raw),
 })
 
-/** Resposta de `GET /comunicacao/tribunal` (lista oficial de siglas). */
-const tribunal_institution_schema = z.object({
-  sigla: z.string(),
-  nome: z.string().optional(),
-  dataUltimoEnvio: z.string().optional(),
-  active: z.boolean().optional(),
-})
-
-const tribunal_uf_group_schema = z.object({
-  uf: z.string(),
-  nomeEstado: z.string().optional(),
-  instituicoes: z.array(tribunal_institution_schema),
-})
-
-const tribunais_list_schema = z.array(tribunal_uf_group_schema)
-
 export type PjeCommunication = z.infer<typeof communication_raw>
 
 export type FetchCommunicationsOptions = {
@@ -79,14 +65,14 @@ export type FetchCommunicationsOptions = {
    * Se definido, `fetchCommunications` retorna `[]` e não acumula itens em memória.
    */
   on_page?: (items: PjeCommunication[]) => Promise<void>
+  /** Sobrescreve o teto diário (ex. testes). */
+  max_items_per_day?: number
 }
 
 @Injectable()
 export class PjeApiClient {
   private readonly logger = new Logger(PjeApiClient.name)
   private readonly base_url: string
-  /** Siglas únicas do último `GET /comunicacao/tribunal` bem-sucedido (por processo). */
-  private tribunal_siglas_cache: string[] | null = null
 
   constructor(private readonly config: ConfigService) {
     this.base_url = config.get<string>('PJE_API_BASE_URL', 'https://comunicaapi.pje.jus.br/api/v1')
@@ -98,36 +84,16 @@ export class PjeApiClient {
     return DEFAULT_PAGE_DELAY_MS
   }
 
-  private async fetchTribunalSiglasFromApi(): Promise<string[]> {
-    const url = `${this.base_url}/comunicacao/tribunal`
-    const { data: raw } = await this.fetchJson(url)
-    const parsed = tribunais_list_schema.safeParse(raw)
-    if (!parsed.success) {
-      this.logger.error('Resposta de /comunicacao/tribunal inesperada', parsed.error.issues)
-      throw new Error('Formato inválido em GET /comunicacao/tribunal')
+  private resolveCommunicationLimitPerDay(options?: FetchCommunicationsOptions): number {
+    if (options?.max_items_per_day != null) {
+      const n = Math.floor(options.max_items_per_day)
+      if (Number.isFinite(n) && n >= 1) return Math.min(n, 1_000_000)
     }
-    const unique = new Set<string>()
-    for (const group of parsed.data) {
-      for (const inst of group.instituicoes) {
-        const s = inst.sigla.trim()
-        if (s !== '') unique.add(s)
-      }
+    const from_config = this.config.get<number>('PJE_COMMUNICATION_LIMIT_PER_DAY')
+    if (typeof from_config === 'number' && Number.isFinite(from_config) && from_config >= 1) {
+      return Math.min(Math.floor(from_config), 1_000_000)
     }
-    const sorted = Array.from(unique).sort((a, b) => a.localeCompare(b, 'pt-BR'))
-    if (sorted.length === 0) {
-      throw new Error('GET /comunicacao/tribunal não retornou nenhuma sigla')
-    }
-    return sorted
-  }
-
-  /** Lista oficial de siglas; cache em memória por processo (uma chamada à API). */
-  private async resolveTribunalSiglas(): Promise<string[]> {
-    if (this.tribunal_siglas_cache !== null) return this.tribunal_siglas_cache
-
-    const siglas = await this.fetchTribunalSiglasFromApi()
-    this.tribunal_siglas_cache = siglas
-    this.logger.log(`Siglas de tribunal (API /comunicacao/tribunal): ${siglas.length} únicas`)
-    return siglas
+    return DEFAULT_COMMUNICATION_LIMIT_PER_DAY
   }
 
   private isPjeApiErrorPayload(raw: unknown): raw is { status: string; message?: string } {
@@ -217,92 +183,83 @@ export class PjeApiClient {
 
   /**
    * Lista comunicações de um dia civil em Brasília (`YYYY-MM-DD`) ou `Date` (menos fiável; prefira string).
-   * Sempre **dia → cada sigla** (`GET /comunicacao/tribunal`, cache) **→ páginas com `siglaTribunal` e 100 itens**,
-   * até a resposta trazer `count` (ou tamanho de `items`) menor que 100.
-   * Opcional: `on_page` persiste cada página antes da pausa; nesse caso o retorno é `[]`.
+   * - `itensPorPagina=5` (regra da API). Pagina até:
+   * - a página indicar fim (`count` da resposta ≤ 5 quando usado como tamanho da página, senão `items.length` &lt; 5), ou
+   * - `PJE_COMMUNICATION_LIMIT_PER_DAY` (predef. 2500) itens já processados nesse dia.
+   * Opcional: `on_page` persiste cada lote antes da pausa; nesse caso o retorno é `[]`.
    */
   async fetchCommunications(
     date: Date | string,
     options?: FetchCommunicationsOptions,
   ): Promise<PjeCommunication[]> {
     const date_str = this.normalizeDateString(date)
-    const items_per_page = 100 as const
     const on_page = options?.on_page
-
-    const siglas = await this.resolveTribunalSiglas()
+    const max_per_day = this.resolveCommunicationLimitPerDay(options)
     const by_id = on_page ? null : new Map<string, PjeCommunication>()
 
     this.logger.log(
-      `${date_str}: por tribunal (${siglas.length} siglas), ${items_per_page} itens/página; parar quando retorno < ${items_per_page} (count da PJE se ≤ ${items_per_page}, senão items.length); pausa ~${this.basePageDelayMs()}ms`,
+      `${date_str}: GET /comunicacao (sem filtro de tribunal), ${ITEMS_PER_PAGE} itens/página; parar se retorno < ${ITEMS_PER_PAGE} ou após ${max_per_day} itens no dia; pausa base ~${this.basePageDelayMs()}ms`,
     )
 
-    for (const sigla of siglas) {
-      try {
-        let page = 1
-        let page_returned: number = 0
-        do {
-          const params = new URLSearchParams()
-          params.set('dataDisponibilizacaoInicio', date_str)
-          params.set('dataDisponibilizacaoFim', date_str)
-          params.set('siglaTribunal', sigla)
-          params.set('pagina', String(page))
-          params.set('itensPorPagina', String(items_per_page))
+    let accumulated = 0
+    let page = 1
 
-          const url = `${this.base_url}/comunicacao?${params.toString()}`
-          const { data: raw, response } = await this.fetchJson(url)
+    while (accumulated < max_per_day) {
+      const params = new URLSearchParams()
+      params.set('dataDisponibilizacaoInicio', date_str)
+      params.set('dataDisponibilizacaoFim', date_str)
+      params.set('pagina', String(page))
+      params.set('itensPorPagina', String(ITEMS_PER_PAGE))
 
-          if (this.isPjeApiErrorPayload(raw)) {
-            this.logger.warn(
-              `PJE ${sigla} (${date_str}) página ${page}: ${this.pjeApiErrorMessage(raw)}`,
-            )
-            break
-          }
+      const url = `${this.base_url}/comunicacao?${params.toString()}`
+      const { data: raw, response } = await this.fetchJson(url)
 
-          const parsed = response_schema.safeParse(raw)
-          if (!parsed.success) {
-            this.logger.error(
-              `Resposta inválida PJE sigla=${sigla} página=${page}`,
-              parsed.error.issues,
-            )
-            throw new Error('Formato de resposta inválido da API do PJE')
-          }
-
-          const { items, count } = parsed.data
-          /**
-           * Quantidade “desta página” para decidir parada: se `count` ≤ 100, é o tamanho da página (ex. 44 na última).
-           * Se `count` for maior (total do filtro na PJE), usa-se `items.length`.
-           */
-          page_returned = count != null && count <= items_per_page ? count : items.length
-          if (page === 1 && count != null) {
-            this.logger.debug(`PJE ${sigla} página 1: count(resposta)=${count}, items.length=${items.length}`)
-          }
-
-          if (items.length > 0) {
-            await on_page?.(items)
-            if (by_id) {
-              for (const item of items) {
-                by_id.set(item.id, item)
-              }
-            }
-          }
-
-          if (page_returned === items_per_page) {
-            await this.paceBeforeNextPage(response)
-            page += 1
-          }
-        } while (page_returned === items_per_page)
-      } catch (err) {
-        this.logger.warn(`Falha ao buscar ${sigla} em ${date_str}: ${(err as Error).message}`)
+      if (this.isPjeApiErrorPayload(raw)) {
+        this.logger.warn(`PJE (${date_str}) página ${page}: ${this.pjeApiErrorMessage(raw)}`)
+        break
       }
+
+      const parsed = response_schema.safeParse(raw)
+      if (!parsed.success) {
+        this.logger.error(`Resposta inválida PJE página=${page}`, parsed.error.issues)
+        throw new Error('Formato de resposta inválido da API do PJE')
+      }
+
+      const { items, count } = parsed.data
+      /**
+       * Tamanho “desta página” para decidir parada: se `count` ≤ 5, a PJE usa como tamanho da página (ex. 3 na última).
+       * Se `count` for o total do filtro &gt; 5, usa-se `items.length`.
+       */
+      const page_returned =
+        count != null && count <= ITEMS_PER_PAGE ? count : items.length
+
+      const room = max_per_day - accumulated
+      const slice = room <= 0 ? [] : items.slice(0, Math.min(items.length, room))
+
+      if (slice.length > 0) {
+        await on_page?.(slice)
+        if (by_id) {
+          for (const item of slice) {
+            by_id.set(item.id, item)
+          }
+        }
+        accumulated += slice.length
+      }
+
+      if (accumulated >= max_per_day) break
+      if (page_returned < ITEMS_PER_PAGE) break
+
+      await this.paceBeforeNextPage(response)
+      page += 1
     }
 
     if (on_page) {
-      this.logger.log(`${date_str}: páginas concluídas (persistência incremental por página)`)
+      this.logger.log(`${date_str}: páginas concluídas (${accumulated} itens processados no dia, teto ${max_per_day})`)
       return []
     }
 
     const merged = Array.from(by_id!.values())
-    this.logger.log(`Total ${merged.length} comunicações únicas em ${date_str} (após merge por tribunal)`)
+    this.logger.log(`Total ${merged.length} comunicações em ${date_str} (teto diário ${max_per_day})`)
     return merged
   }
 }

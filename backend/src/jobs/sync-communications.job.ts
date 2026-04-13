@@ -32,7 +32,7 @@ export class SyncCommunicationsJob {
     await this.syncForYesterday()
   }
 
-  /** Cron diário: **ontem** em Brasília (por tribunal até retorno da página menor que 100 itens). Gera 1 SyncLog. */
+  /** Cron diário: **ontem** em Brasília (5 itens/página até fim da lista ou `PJE_COMMUNICATION_LIMIT_PER_DAY`). Gera 1 SyncLog. */
   async syncForYesterday(): Promise<SyncResult> {
     const yesterday_ymd = addCalendarDaysYmd(brazilTodayYmd(), -1)
     this.logger.log(`Ontem (BRT): ${yesterday_ymd}`)
@@ -45,7 +45,7 @@ export class SyncCommunicationsJob {
   }
 
   /**
-   * Últimos `days` dias civis em BRT, sem incluir hoje.
+   * Últimos `days` dias civis em BRT, sem incluir hoje (cada dia respeita `PJE_COMMUNICATION_LIMIT_PER_DAY`).
    * Gera **1 único SyncLog** com os totais acumulados de todos os dias.
    */
   async syncLastDays(days: number): Promise<SyncResult> {

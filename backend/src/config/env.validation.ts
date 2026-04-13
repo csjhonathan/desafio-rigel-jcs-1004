@@ -5,6 +5,8 @@ const env_schema = z.object({
   JWT_SECRET: z.string().min(8, 'JWT_SECRET deve ter ao menos 8 caracteres'),
   JWT_EXPIRES_IN: z.string().default('7d'),
   PJE_API_BASE_URL: z.string().url('PJE_API_BASE_URL deve ser uma URL válida'),
+  /** Máximo de comunicações a ingerir por dia civil (BRT) por sync; predef. 2500. */
+  PJE_COMMUNICATION_LIMIT_PER_DAY: z.coerce.number().int().min(1).max(1_000_000).default(2500),
   PJE_PAGE_DELAY_MS: z.preprocess((v) => {
     if (v === '' || v == null) return undefined
     const n = Number(v)
