@@ -8,6 +8,15 @@ O desafio pedia comunicações dos **últimos 20 dias**, não **todas** as comun
 
 Se no futuro quiserem **mais volume**, basta subir esse teto — aceitando mais chamadas à PJE e maior risco de `429` (ajustar `PJE_PAGE_DELAY_MS` e concorrência de dias em conformidade).
 
+### Melhoria posterior: sync completa por tribunal (estado atual do código)
+
+Mantém-se o raciocínio do requisito (janela de dias, cuidado com `429`), mas a **implementação da busca na PJE mudou**:
+
+- **Antes:** consulta só por data, `itensPorPagina=5` (exigência quando não há filtro estreito), com **teto** de páginas por dia via `PJE_SYNC_MAX_PAGES_PER_DAY` / `all_pages` no cron.
+- **Depois:** para cada dia em BRT, iteramos **cada sigla** obtida em **`GET …/comunicacao/tribunal`** (cache em memória; sem lista fixa nem env de siglas). Por sigla usamos **`siglaTribunal` + `itensPorPagina=100`** e paginamos até o retorno da página indicar fim (campo **`count`** quando `count ≤ 100`, ex. 44 na última página; se `count` for o total do filtro &gt; 100, usa-se **`items.length`**).
+- **Motivo:** a API só permite mais de 5 itens por página se houver filtro como `siglaTribunal`; isso reduz drasticamente o número de requisições em dias com muitas comunicações.
+- **Persistência incremental:** `on_page` no `PjeApiClient` + upsert por lote no job; **`SyncLog.total_fetched` / `total_stored`** atualizados com **`increment`** a cada página; retorno do job usa **`readSyncLogCounts`** para bater com o registro no banco. **Foram removidos** da sync o cap por páginas/dia e envs como `PJE_FETCH_ALL_PAGES` / `PJE_SYNC_MAX_PAGES_PER_DAY` **nesse fluxo** (o parágrafo inicial acima permanece como **contexto histórico** da decisão de produto; o código atual prioriza cobertura por tribunal).
+
 ## Filtro `start_date` / `end_date` (comunicações)
 
 **Problema:** Com `new Date('YYYY-MM-DD')`, o motor trata a data como **meia-noite UTC**. Em Brasília isso cai no **fim da noite do dia anterior** (ex.: `2026-04-09` → `2026-04-09T00:00:00.000Z` = 08/04 21:00 BRT). O `gte` desse valor incluía registros ainda “do dia 08” na UI.
@@ -18,9 +27,9 @@ Se no futuro quiserem **mais volume**, basta subir esse teto — aceitando mais 
 
 | Peça | Notas |
 |------|--------|
-| `PjeApiClient` | Mesmo URL; `itensPorPagina=5`. **Seed:** cap `PJE_SYNC_MAX_PAGES_PER_DAY` ou `max_pages`. **Cron:** `all_pages` → pagina até esgotar (teto segurança 20 000 pág. no código). |
-| Cron `syncForYesterday` | Só ontem; chama `fetchCommunications(..., { all_pages: true })` — **não** lê `PJE_SYNC_MAX_PAGES_PER_DAY`. |
-| `syncForDate` / `syncLastDays` | Seed: cap do **seed** (`PJE_SYNC_MAX_PAGES_PER_DAY`). |
+| `PjeApiClient` | **Histórico:** mesmo URL; `itensPorPagina=5`. **Seed:** cap `PJE_SYNC_MAX_PAGES_PER_DAY` ou `max_pages`. **Cron:** `all_pages` → pagina até esgotar. **Atual:** `fetchCommunications` usa `/comunicacao/tribunal` (cache), por sigla + dia `itensPorPagina=100`, paginação até última página; opcional `on_page`. |
+| Cron `syncForYesterday` | **Histórico:** `fetchCommunications(..., { all_pages: true })` — não lia `PJE_SYNC_MAX_PAGES_PER_DAY`. **Atual:** só ontem (BRT); `fetchCommunications` + `on_page` (upsert por página). |
+| `syncForDate` / `syncLastDays` | **Histórico:** seed com cap `PJE_SYNC_MAX_PAGES_PER_DAY`. **Atual:** mesmo fluxo completo por dia; `syncLastDays` agrega N dias num único `SyncLog`. |
 | Rate limit | `PJE_PAGE_DELAY_MS`; retentativa após 60s em `429`; cabeçalhos `x-ratelimit-*`. |
 | `syncLastDays` | Dias civis em **BRT** (`brazilTodayYmd` + `addCalendarDaysYmd`); **não inclui hoje**. Lotes: `PJE_SYNC_DAY_CONCURRENCY` (predef. 1, máx. 8). |
 | Seed | Sync só se a base **não** tiver comunicações. Repovoar: `prisma migrate reset` ou lógica extra no `seed.ts`. |
@@ -74,11 +83,14 @@ O schema original só tinha `executed_at` e `total_synced`. Não dava para saber
 
 Para distinguir insert de update no Prisma — que não expõe isso nativamente no `upsert` — fizemos um `findUnique` antes de cada `upsert` no repository. O custo é uma query extra por registro, mas é aceitável para o volume que estamos processando.
 
-O log é criado no início com `success: false` e atualizado ao final com os dados reais. Isso garante que mesmo se o processo for interrompido, existe um registro da tentativa.
+O log é criado no início com `success: false` e atualizado ao final com os dados reais. Isso garante que, mesmo se o processo for interrompido, existe um registro da tentativa.
+
+**Evolução:** os totais deixaram de ser só gravados no fechamento: **`total_fetched`** e **`total_stored`** passaram a ser incrementados no banco **a cada página** da PJE (`increment` no Prisma), para o front (polling em `/sync/logs`) acompanhar o progresso; o `update` final marca `ended_at` e `success` sem sobrescrever esses contadores. O retorno do job usa **`readSyncLogCounts`** para refletir o que está persistido (sucesso ou erro).
 
 ## Problema → mitigação
 
 - **429 / muito tráfego** — pausa entre páginas; poucos dias em paralelo; não `Promise.all` em todos os dias.
-- **Cap por dia** — escolha de produto (requisito ≠ “tudo”); técnica + API aconselham não escalar páginas/dia sem monitorizar `429`.
-- **Filtro mínimo na API** — sem `siglaTribunal`: usar `itensPorPagina=5` + paginação por dia.
+- **Cap por dia** — decisão de produto documentada acima (requisito ≠ “tudo”); na implementação antiga, técnica + API aconselhavam não escalar páginas/dia sem monitorizar `429`.
+- **Muitas páginas (após tribunal)** — sync completa por dia = tribunais × páginas; monitorizar `429` e `PJE_PAGE_DELAY_MS`.
+- **Filtro mínimo na API** — sem `siglaTribunal`: usar `itensPorPagina=5` + paginação por dia. **Com a sync por tribunal:** `siglaTribunal` + `itensPorPagina=100`, siglas oficiais em `/comunicacao/tribunal`.
 - **Next em Docker** — servidor precisa de `API_URL_INTERNAL` (ex. `http://backend:3001`); browser usa `NEXT_PUBLIC_API_URL`.
