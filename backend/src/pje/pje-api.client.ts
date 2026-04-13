@@ -7,8 +7,6 @@ const RATE_LIMIT_RETRY_MS = 60_000
 const MAX_429_RETRIES = 5
 /** Pausa mínima entre pedidos de página (ms); reduz 429. */
 const DEFAULT_PAGE_DELAY_MS = 800
-/** Máximo de páginas por dia (itensPorPagina=5). */
-const DEFAULT_MAX_PAGES_PER_DAY = 30
 
 /** Destinatário: API retorna `polo` (P/A); versões antigas podem usar `tipo`. */
 const recipient_schema = z
@@ -57,19 +55,38 @@ const response_schema = z.object({
   items: z.array(communication_raw),
 })
 
+/** Resposta de `GET /comunicacao/tribunal` (lista oficial de siglas). */
+const tribunal_institution_schema = z.object({
+  sigla: z.string(),
+  nome: z.string().optional(),
+  dataUltimoEnvio: z.string().optional(),
+  active: z.boolean().optional(),
+})
+
+const tribunal_uf_group_schema = z.object({
+  uf: z.string(),
+  nomeEstado: z.string().optional(),
+  instituicoes: z.array(tribunal_institution_schema),
+})
+
+const tribunais_list_schema = z.array(tribunal_uf_group_schema)
+
 export type PjeCommunication = z.infer<typeof communication_raw>
 
 export type FetchCommunicationsOptions = {
-  /** Máximo de páginas (5 itens/página) quando `all_pages` for false. */
-  max_pages?: number
-  /** Quando true, pagina até esgotar (página vazia ou parcial). */
-  all_pages?: boolean
+  /**
+   * Chamado após cada página retornada pela PJE (antes da pausa entre páginas).
+   * Se definido, `fetchCommunications` retorna `[]` e não acumula itens em memória.
+   */
+  on_page?: (items: PjeCommunication[]) => Promise<void>
 }
 
 @Injectable()
 export class PjeApiClient {
   private readonly logger = new Logger(PjeApiClient.name)
   private readonly base_url: string
+  /** Siglas únicas do último `GET /comunicacao/tribunal` bem-sucedido (por processo). */
+  private tribunal_siglas_cache: string[] | null = null
 
   constructor(private readonly config: ConfigService) {
     this.base_url = config.get<string>('PJE_API_BASE_URL', 'https://comunicaapi.pje.jus.br/api/v1')
@@ -81,10 +98,59 @@ export class PjeApiClient {
     return DEFAULT_PAGE_DELAY_MS
   }
 
-  private maxPagesPerDay(): number {
-    const raw = Number(this.config.get('PJE_SYNC_MAX_PAGES_PER_DAY'))
-    if (Number.isFinite(raw) && raw >= 1) return Math.min(100, Math.floor(raw))
-    return DEFAULT_MAX_PAGES_PER_DAY
+  private async fetchTribunalSiglasFromApi(): Promise<string[]> {
+    const url = `${this.base_url}/comunicacao/tribunal`
+    const { data: raw } = await this.fetchJson(url)
+    const parsed = tribunais_list_schema.safeParse(raw)
+    if (!parsed.success) {
+      this.logger.error('Resposta de /comunicacao/tribunal inesperada', parsed.error.issues)
+      throw new Error('Formato inválido em GET /comunicacao/tribunal')
+    }
+    const unique = new Set<string>()
+    for (const group of parsed.data) {
+      for (const inst of group.instituicoes) {
+        const s = inst.sigla.trim()
+        if (s !== '') unique.add(s)
+      }
+    }
+    const sorted = Array.from(unique).sort((a, b) => a.localeCompare(b, 'pt-BR'))
+    if (sorted.length === 0) {
+      throw new Error('GET /comunicacao/tribunal não retornou nenhuma sigla')
+    }
+    return sorted
+  }
+
+  /** Lista oficial de siglas; cache em memória por processo (uma chamada à API). */
+  private async resolveTribunalSiglas(): Promise<string[]> {
+    if (this.tribunal_siglas_cache !== null) return this.tribunal_siglas_cache
+
+    const siglas = await this.fetchTribunalSiglasFromApi()
+    this.tribunal_siglas_cache = siglas
+    this.logger.log(`Siglas de tribunal (API /comunicacao/tribunal): ${siglas.length} únicas`)
+    return siglas
+  }
+
+  private isPjeApiErrorPayload(raw: unknown): raw is { status: string; message?: string } {
+    return (
+      typeof raw === 'object' &&
+      raw !== null &&
+      'status' in raw &&
+      (raw as { status: unknown }).status === 'error'
+    )
+  }
+
+  private pjeApiErrorMessage(raw: { message?: unknown }): string {
+    return typeof raw.message === 'string' ? raw.message : 'erro desconhecido da API do PJE'
+  }
+
+  private normalizeDateString(date: Date | string): string {
+    if (typeof date === 'string') {
+      if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        throw new RangeError(`data inválida (use YYYY-MM-DD): ${date}`)
+      }
+      return date
+    }
+    return date.toISOString().split('T')[0]
   }
 
   private logRateLimit(response: Response) {
@@ -151,92 +217,92 @@ export class PjeApiClient {
 
   /**
    * Lista comunicações de um dia civil em Brasília (`YYYY-MM-DD`) ou `Date` (menos fiável; prefira string).
-   * `itensPorPagina=5`, páginas 1…N.
-   * - `all_pages=true`: busca até esgotar (página vazia ou parcial).
-   * - `all_pages=false`: limita pela configuração de páginas.
+   * Sempre **dia → cada sigla** (`GET /comunicacao/tribunal`, cache) **→ páginas com `siglaTribunal` e 100 itens**,
+   * até a resposta trazer `count` (ou tamanho de `items`) menor que 100.
+   * Opcional: `on_page` persiste cada página antes da pausa; nesse caso o retorno é `[]`.
    */
   async fetchCommunications(
     date: Date | string,
     options?: FetchCommunicationsOptions,
   ): Promise<PjeCommunication[]> {
-    const date_str =
-      typeof date === 'string'
-        ? (() => {
-            if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) {
-              throw new RangeError(`data inválida (use YYYY-MM-DD): ${date}`)
-            }
-            return date
-          })()
-        : date.toISOString().split('T')[0]
-    const items_per_page = 5 as const
-    const all_pages = Boolean(this.config.get<boolean>('PJE_FETCH_ALL_PAGES') || options?.all_pages)
-    const page_limit = options?.max_pages != null && Number.isFinite(options.max_pages)
-      ? Math.min(100, Math.max(1, Math.floor(options.max_pages)))
-      : this.maxPagesPerDay()
+    const date_str = this.normalizeDateString(date)
+    const items_per_page = 100 as const
+    const on_page = options?.on_page
 
-    const all: PjeCommunication[] = []
+    const siglas = await this.resolveTribunalSiglas()
+    const by_id = on_page ? null : new Map<string, PjeCommunication>()
 
     this.logger.log(
-      all_pages
-        ? `${date_str}: todas as páginas até esgotar; pausa ~${this.basePageDelayMs()}ms entre páginas`
-        : `${date_str}: até ${page_limit} página(s) × 5 itens; pausa ~${this.basePageDelayMs()}ms entre páginas`,
+      `${date_str}: por tribunal (${siglas.length} siglas), ${items_per_page} itens/página; parar quando retorno < ${items_per_page} (count da PJE se ≤ ${items_per_page}, senão items.length); pausa ~${this.basePageDelayMs()}ms`,
     )
 
-    for (let page = 1; all_pages || page <= page_limit; page++) {
-      const params = new URLSearchParams()
-      params.set('dataDisponibilizacaoInicio', date_str)
-      params.set('dataDisponibilizacaoFim', date_str)
-      params.set('pagina', String(page))
-      params.set('itensPorPagina', String(items_per_page))
-
-      const url = `${this.base_url}/comunicacao?${params.toString()}`
-      const { data: raw, response } = await this.fetchJson(url)
-      const parsed = response_schema.safeParse(raw)
-
-      if (!parsed.success) {
-        this.logger.error('Resposta da API do PJE não corresponde ao schema esperado', parsed.error.issues)
-        throw new Error('Formato de resposta inválido da API do PJE')
-      }
-
-      const { items, count } = parsed.data
-      if (page === 1 && count != null) {
-        this.logger.log(
-          all_pages
-            ? `PJE count=${count} (total reportado para o dia; paginação completa até esgotar)`
-            : `PJE count=${count} (total reportado para o dia; sync limitada a ${page_limit} páginas)`,
-        )
-      }
-
-      all.push(...items)
-
-      if (items.length === 0) break
-      if (items.length < items_per_page) break
-      await this.paceBeforeNextPage(response)
-    }
-
-    this.logger.log(`Total ${all.length} comunicações em ${date_str}`)
-    return all
-  }
-
-  async fetchLastDays(days: number): Promise<PjeCommunication[]> {
-    const all_communications: PjeCommunication[] = []
-    const today_brt = brazilTodayYmd()
-
-    for (let i = 1; i <= days; i++) {
-      const ymd = addCalendarDaysYmd(today_brt, -i)
-
+    for (const sigla of siglas) {
       try {
-        const items = await this.fetchCommunications(ymd)
-        all_communications.push(...items)
-        this.logger.log(`${ymd} (-${i}d BRT): ${items.length} comunicações`)
-        if (i < days) {
-          await this.sleep(this.basePageDelayMs() * 2)
-        }
+        let page = 1
+        let page_returned: number = 0
+        do {
+          const params = new URLSearchParams()
+          params.set('dataDisponibilizacaoInicio', date_str)
+          params.set('dataDisponibilizacaoFim', date_str)
+          params.set('siglaTribunal', sigla)
+          params.set('pagina', String(page))
+          params.set('itensPorPagina', String(items_per_page))
+
+          const url = `${this.base_url}/comunicacao?${params.toString()}`
+          const { data: raw, response } = await this.fetchJson(url)
+
+          if (this.isPjeApiErrorPayload(raw)) {
+            this.logger.warn(
+              `PJE ${sigla} (${date_str}) página ${page}: ${this.pjeApiErrorMessage(raw)}`,
+            )
+            break
+          }
+
+          const parsed = response_schema.safeParse(raw)
+          if (!parsed.success) {
+            this.logger.error(
+              `Resposta inválida PJE sigla=${sigla} página=${page}`,
+              parsed.error.issues,
+            )
+            throw new Error('Formato de resposta inválido da API do PJE')
+          }
+
+          const { items, count } = parsed.data
+          /**
+           * Quantidade “desta página” para decidir parada: se `count` ≤ 100, é o tamanho da página (ex. 44 na última).
+           * Se `count` for maior (total do filtro na PJE), usa-se `items.length`.
+           */
+          page_returned = count != null && count <= items_per_page ? count : items.length
+          if (page === 1 && count != null) {
+            this.logger.debug(`PJE ${sigla} página 1: count(resposta)=${count}, items.length=${items.length}`)
+          }
+
+          if (items.length > 0) {
+            await on_page?.(items)
+            if (by_id) {
+              for (const item of items) {
+                by_id.set(item.id, item)
+              }
+            }
+          }
+
+          if (page_returned === items_per_page) {
+            await this.paceBeforeNextPage(response)
+            page += 1
+          }
+        } while (page_returned === items_per_page)
       } catch (err) {
-        this.logger.warn(`Erro ao buscar comunicações do dia -${i}: ${(err as Error).message}`)
+        this.logger.warn(`Falha ao buscar ${sigla} em ${date_str}: ${(err as Error).message}`)
       }
     }
 
-    return all_communications
+    if (on_page) {
+      this.logger.log(`${date_str}: páginas concluídas (persistência incremental por página)`)
+      return []
+    }
+
+    const merged = Array.from(by_id!.values())
+    this.logger.log(`Total ${merged.length} comunicações únicas em ${date_str} (após merge por tribunal)`)
+    return merged
   }
 }
