@@ -7,10 +7,8 @@ const RATE_LIMIT_RETRY_MS = 60_000
 const MAX_429_RETRIES = 5
 /** Pausa mínima entre pedidos de página (ms); reduz 429. */
 const DEFAULT_PAGE_DELAY_MS = 800
-/** Máximo de páginas por dia (itensPorPagina=5 → 50 registros com 10 páginas). */
+/** Máximo de páginas por dia (itensPorPagina=5). */
 const DEFAULT_MAX_PAGES_PER_DAY = 30
-/** Teto só para evitar loop infinito se a API se comportar mal (`all_pages`). */
-const SAFETY_MAX_PAGES_PER_DAY = 40
 
 /** Destinatário: API retorna `polo` (P/A); versões antigas podem usar `tipo`. */
 const recipient_schema = z
@@ -62,12 +60,9 @@ const response_schema = z.object({
 export type PjeCommunication = z.infer<typeof communication_raw>
 
 export type FetchCommunicationsOptions = {
-  /** Máximo de páginas (5 itens cada). Ignorado se `all_pages` for true. */
+  /** Máximo de páginas (5 itens/página) quando `all_pages` for false. */
   max_pages?: number
-  /**
-   * Paginar até a PJE devolver página vazia ou com menos de 5 itens (fim natural).
-   * Usado pelo cron (só um dia). Ainda há teto interno `SAFETY_MAX_PAGES_PER_DAY`.
-   */
+  /** Quando true, pagina até esgotar (página vazia ou parcial). */
   all_pages?: boolean
 }
 
@@ -86,7 +81,6 @@ export class PjeApiClient {
     return DEFAULT_PAGE_DELAY_MS
   }
 
-  /** Páginas 1..N por dia (cada uma até 5 itens). */
   private maxPagesPerDay(): number {
     const raw = Number(this.config.get('PJE_SYNC_MAX_PAGES_PER_DAY'))
     if (Number.isFinite(raw) && raw >= 1) return Math.min(100, Math.floor(raw))
@@ -159,8 +153,8 @@ export class PjeApiClient {
   /**
    * Lista comunicações de um dia civil em Brasília (`YYYY-MM-DD`) ou `Date` (menos fiável; prefira string).
    * `itensPorPagina=5`, páginas 1…N.
-   * - Sem opções / só `max_pages`: respeita `PJE_SYNC_MAX_PAGES_PER_DAY` ou `max_pages`.
-   * - `all_pages: true`: segue até esgotar (vazia ou menos de 5 itens), com teto de segurança interno.
+   * - `all_pages=true`: busca até esgotar (página vazia ou parcial).
+   * - `all_pages=false`: limita pela configuração de páginas.
    */
   async fetchCommunications(
     date: Date | string,
@@ -176,22 +170,20 @@ export class PjeApiClient {
           })()
         : date.toISOString().split('T')[0]
     const items_per_page = 5 as const
-    const all_pages = Boolean(options?.all_pages)
-    const page_limit = all_pages
-      ? SAFETY_MAX_PAGES_PER_DAY
-      : options?.max_pages != null && Number.isFinite(options.max_pages)
-        ? Math.min(100, Math.max(1, Math.floor(options.max_pages)))
-        : this.maxPagesPerDay()
+    const all_pages = Boolean(this.config.get<boolean>('PJE_FETCH_ALL_PAGES') || options?.all_pages)
+    const page_limit = options?.max_pages != null && Number.isFinite(options.max_pages)
+      ? Math.min(100, Math.max(1, Math.floor(options.max_pages)))
+      : this.maxPagesPerDay()
 
     const all: PjeCommunication[] = []
 
     this.logger.log(
       all_pages
-        ? `${date_str}: todas as páginas até esgotar (teto segurança ${page_limit}); pausa ~${this.basePageDelayMs()}ms entre páginas`
+        ? `${date_str}: todas as páginas até esgotar; pausa ~${this.basePageDelayMs()}ms entre páginas`
         : `${date_str}: até ${page_limit} página(s) × 5 itens; pausa ~${this.basePageDelayMs()}ms entre páginas`,
     )
 
-    for (let page = 1; page <= page_limit; page++) {
+    for (let page = 1; all_pages || page <= page_limit; page++) {
       const params = new URLSearchParams()
       params.set('dataDisponibilizacaoInicio', date_str)
       params.set('dataDisponibilizacaoFim', date_str)
@@ -220,14 +212,6 @@ export class PjeApiClient {
 
       if (items.length === 0) break
       if (items.length < items_per_page) break
-      if (page === page_limit) {
-        if (all_pages && items.length === items_per_page) {
-          this.logger.warn(
-            `Teto de segurança (${page_limit} páginas) atingido em ${date_str}; pode haver mais itens na PJE.`,
-          )
-        }
-        break
-      }
       await this.paceBeforeNextPage(response)
     }
 

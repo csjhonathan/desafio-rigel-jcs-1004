@@ -22,6 +22,16 @@ const env_schema = z.object({
     const n = Number(v)
     return Number.isFinite(n) ? n : undefined
   }, z.number().int().min(1).max(8).optional()),
+  PJE_FETCH_ALL_PAGES: z.preprocess((v) => {
+    if (v === '' || v == null) return undefined
+    if (typeof v === 'boolean') return v
+    if (typeof v === 'string') {
+      const normalized = v.trim().toLowerCase()
+      if (['1', 'true', 'yes', 'y', 'on'].includes(normalized)) return true
+      if (['0', 'false', 'no', 'n', 'off'].includes(normalized)) return false
+    }
+    return undefined
+  }, z.boolean().optional()),
   ANTHROPIC_API_KEY: z.string().optional(),
   OPENAI_API_KEY: z.string().optional(),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
