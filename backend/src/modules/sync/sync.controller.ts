@@ -23,7 +23,7 @@ export class SyncController {
   trigger(@Body() body: TriggerSyncDto) {
     const date = body.date ?? addCalendarDaysYmd(brazilTodayYmd(), -1)
 
-    this.syncJob.syncForDate(date, true).catch((err: Error) => {
+    this.syncJob.syncForDate(date).catch((err: Error) => {
       this.logger.error(`Erro no sync manual para ${date}: ${err.message}`)
     })
 

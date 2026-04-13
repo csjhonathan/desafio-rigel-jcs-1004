@@ -4,7 +4,7 @@ import { Cron } from '@nestjs/schedule'
 import { addCalendarDaysYmd, brazilTodayYmd } from '../common/brazil-calendar-day'
 import { detectResJudicata } from '../modules/communications/communications.service'
 import { CommunicationsRepository } from '../modules/communications/communications.repository'
-import { PjeApiClient } from '../pje/pje-api.client'
+import { type PjeCommunication, PjeApiClient } from '../pje/pje-api.client'
 import { PrismaService } from '../prisma/prisma.service'
 
 const CRON_DAILY_SYNC = '0 1 * * *'
@@ -32,18 +32,16 @@ export class SyncCommunicationsJob {
     await this.syncForYesterday()
   }
 
-  /** Cron diário: **ontem** em Brasília, paginação completa. Gera 1 SyncLog. */
+  /** Cron diário: **ontem** em Brasília (por tribunal até retorno da página menor que 100 itens). Gera 1 SyncLog. */
   async syncForYesterday(): Promise<SyncResult> {
     const yesterday_ymd = addCalendarDaysYmd(brazilTodayYmd(), -1)
-    this.logger.log(`Ontem (BRT): ${yesterday_ymd} (paginação completa)`)
-    return this.withSyncLog(() => this.executeSyncDay(yesterday_ymd, { all_pages: true }))
+    this.logger.log(`Ontem (BRT): ${yesterday_ymd}`)
+    return this.withSyncLog((sync_log_id) => this.executeSyncDay(yesterday_ymd, sync_log_id))
   }
 
   /** Sincroniza um dia específico (`YYYY-MM-DD`). Gera 1 SyncLog. */
-  async syncForDate(ymd: string, all_pages = false): Promise<SyncResult> {
-    return this.withSyncLog(() =>
-      this.executeSyncDay(ymd, all_pages ? { all_pages: true } : undefined),
-    )
+  async syncForDate(ymd: string): Promise<SyncResult> {
+    return this.withSyncLog((sync_log_id) => this.executeSyncDay(ymd, sync_log_id))
   }
 
   /**
@@ -64,7 +62,7 @@ export class SyncCommunicationsJob {
       Math.max(1, Number.isFinite(raw) && raw >= 1 ? Math.floor(raw) : DEFAULT_DAY_CONCURRENCY),
     )
 
-    return this.withSyncLog(async () => {
+    return this.withSyncLog(async (sync_log_id) => {
       let total_fetched = 0
       let total_stored = 0
 
@@ -77,7 +75,7 @@ export class SyncCommunicationsJob {
         const results = await Promise.all(
           batch.map(async (ymd) => {
             try {
-              return await this.executeSyncDay(ymd)
+              return await this.executeSyncDay(ymd, sync_log_id)
             } catch (err) {
               this.logger.warn(`Erro ao sincronizar ${ymd}: ${(err as Error).message}`)
               return { total_fetched: 0, total_stored: 0 }
@@ -96,18 +94,22 @@ export class SyncCommunicationsJob {
   }
 
   /**
-   * Executa a sincronização de um único dia sem criar SyncLog.
-   * Lança erro em caso de falha — o controle de log fica em `withSyncLog`.
+   * Persiste um lote vindo de uma página da PJE.
+   * `total_fetched` no log segue contando **ids únicos** (como no merge antigo por dia).
    */
-  private async executeSyncDay(
-    ymd: string,
-    fetch_options?: { max_pages?: number; all_pages?: boolean },
-  ): Promise<DayCounts> {
-    const items = await this.pjeClient.fetchCommunications(ymd, fetch_options)
-    const total_fetched = items.length
-    let total_stored = 0
+  private async upsertPjePage(
+    items: PjeCommunication[],
+    seen_external_ids: Set<string>,
+  ): Promise<{ delta_fetched: number; delta_stored: number }> {
+    let delta_fetched = 0
+    let delta_stored = 0
 
     for (const item of items) {
+      if (!seen_external_ids.has(item.id)) {
+        seen_external_ids.add(item.id)
+        delta_fetched += 1
+      }
+
       const has_res_judicata = detectResJudicata(item.texto)
 
       const { was_created } = await this.communicationsRepository.upsert({
@@ -121,31 +123,70 @@ export class SyncCommunicationsJob {
         recipients: item.destinatarios.map((d) => ({ name: d.nome, kind: d.tipo })),
       })
 
-      if (was_created) total_stored++
+      if (was_created) delta_stored += 1
       this.logger.debug(`Comunicação ${item.id} ${was_created ? 'inserida' : 'atualizada'}`)
     }
+
+    return { delta_fetched, delta_stored }
+  }
+
+  /**
+   * Executa a sincronização de um único dia sem criar SyncLog.
+   */
+  private async executeSyncDay(ymd: string, sync_log_id?: string): Promise<DayCounts> {
+    const seen_external_ids = new Set<string>()
+    let total_fetched = 0
+    let total_stored = 0
+
+    await this.pjeClient.fetchCommunications(ymd, {
+      on_page: async (items) => {
+        const { delta_fetched, delta_stored } = await this.upsertPjePage(items, seen_external_ids)
+        if (sync_log_id) {
+          await this.prisma.syncLog.update({
+            where: { id: sync_log_id },
+            data: { total_fetched: { increment: delta_fetched }, total_stored: { increment: delta_stored } },
+          })
+        }
+        total_fetched += delta_fetched
+        total_stored += delta_stored
+      },
+    })
 
     this.logger.log(`${ymd}: ${total_fetched} obtidas, ${total_stored} novas armazenadas`)
     return { total_fetched, total_stored }
   }
 
+  /** Totais persistidos no `SyncLog` (fonte única para API e front). */
+  private async readSyncLogCounts(sync_log_id: string): Promise<DayCounts> {
+    const row = await this.prisma.syncLog.findUnique({
+      where: { id: sync_log_id },
+      select: { total_fetched: true, total_stored: true },
+    })
+    return {
+      total_fetched: row?.total_fetched ?? 0,
+      total_stored: row?.total_stored ?? 0,
+    }
+  }
+
   /**
    * Cria um SyncLog no início, executa `fn` e atualiza o log ao final.
-   * Garante que cada chamada pública gera exatamente 1 entrada no histórico.
+   * `total_fetched` / `total_stored` no registro são atualizados durante `fn` (incrementos por página);
+   * aqui só marcamos término e sucesso. O retorno usa os valores lidos do banco.
    */
-  private async withSyncLog(fn: () => Promise<DayCounts>): Promise<SyncResult> {
+  private async withSyncLog(fn: (sync_log_id: string) => Promise<DayCounts>): Promise<SyncResult> {
     const sync_log = await this.prisma.syncLog.create({ data: { success: false } })
 
     try {
-      const { total_fetched, total_stored } = await fn()
+      await fn(sync_log.id)
 
-      this.logger.log(`Sincronização concluída: ${total_fetched} obtidas, ${total_stored} novas`)
       await this.prisma.syncLog.update({
         where: { id: sync_log.id },
-        data: { ended_at: new Date(), success: true, total_fetched, total_stored },
+        data: { ended_at: new Date(), success: true },
       })
 
-      return { success: true, total_fetched, total_stored }
+      const counts = await this.readSyncLogCounts(sync_log.id)
+      this.logger.log(`Sincronização concluída: ${counts.total_fetched} obtidas, ${counts.total_stored} novas`)
+      return { success: true, ...counts }
     } catch (err) {
       const error_message = (err as Error).message
       this.logger.error('Erro na sincronização:', error_message)
@@ -155,7 +196,8 @@ export class SyncCommunicationsJob {
         data: { ended_at: new Date(), success: false, error_message },
       })
 
-      return { success: false, total_fetched: 0, total_stored: 0 }
+      const counts = await this.readSyncLogCounts(sync_log.id)
+      return { success: false, ...counts }
     }
   }
 }
