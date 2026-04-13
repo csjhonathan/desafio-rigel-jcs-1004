@@ -10,28 +10,12 @@ const env_schema = z.object({
     const n = Number(v)
     return Number.isFinite(n) ? n : undefined
   }, z.number().min(50).max(30_000).optional()),
-  /** Máximo de páginas da PJE por dia (5 itens/página). Predefinido 10 → 50 registros/dia. */
-  PJE_SYNC_MAX_PAGES_PER_DAY: z.preprocess((v) => {
-    if (v === '' || v == null) return undefined
-    const n = Number(v)
-    return Number.isFinite(n) ? n : undefined
-  }, z.number().int().min(1).max(100).optional()),
   /** Quantos dias a sincronizar em paralelo no syncLastDays (1–8). Predefinido 1. */
   PJE_SYNC_DAY_CONCURRENCY: z.preprocess((v) => {
     if (v === '' || v == null) return undefined
     const n = Number(v)
     return Number.isFinite(n) ? n : undefined
   }, z.number().int().min(1).max(8).optional()),
-  PJE_FETCH_ALL_PAGES: z.preprocess((v) => {
-    if (v === '' || v == null) return undefined
-    if (typeof v === 'boolean') return v
-    if (typeof v === 'string') {
-      const normalized = v.trim().toLowerCase()
-      if (['1', 'true', 'yes', 'y', 'on'].includes(normalized)) return true
-      if (['0', 'false', 'no', 'n', 'off'].includes(normalized)) return false
-    }
-    return undefined
-  }, z.boolean().optional()),
   ANTHROPIC_API_KEY: z.string().optional(),
   OPENAI_API_KEY: z.string().optional(),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
