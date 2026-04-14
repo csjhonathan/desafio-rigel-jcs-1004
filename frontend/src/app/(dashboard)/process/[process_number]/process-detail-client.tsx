@@ -91,7 +91,6 @@ function CommunicationEntry({
           </Button>
         </div>        
 
-        {/* Destinatários */}
         {recipient_names && (
           <div>
             <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">
@@ -102,7 +101,6 @@ function CommunicationEntry({
           </div>
         )}
 
-        {/* Conteúdo */}
         {c.content && (
           <div>
             <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">

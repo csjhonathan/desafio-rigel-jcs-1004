@@ -61,7 +61,6 @@ export default function CommunicationsPage() {
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Cabeçalho da página */}
       <div className="bg-white border rounded-lg p-5">
         <h1 className="text-xl font-bold text-gray-900">Comunicações</h1>
         <p className="text-sm text-muted-foreground mt-1">
@@ -70,7 +69,6 @@ export default function CommunicationsPage() {
         </p>
       </div>
 
-      {/* Barra de filtros */}
       <FilterBar
         filters={filters}
         tribunals={tribunals}
@@ -79,14 +77,12 @@ export default function CommunicationsPage() {
         onReset={() => setFilters(DEFAULT_FILTERS)}
       />
 
-      {/* Lista de comunicações */}
       <CommunicationTable
         data={result?.data ?? []}
         loading={loading}
         error={error}
       />
 
-      {/* Paginação */}
       {result && result.meta.total_pages > 1 && (
         <Pagination
           page={result.meta.page}

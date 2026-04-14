@@ -174,9 +174,7 @@ function CommunicationCard({
         </div>
 
         <div className="hidden md:flex gap-6">
-          {/* Coluna esquerda */}
           <div className="flex flex-col gap-4 flex-1 min-w-0">
-            {/* Processo */}
             <div>
               <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 tracking-wide mb-1">
                 <Scale className="h-3.5 w-3.5" />
@@ -188,7 +186,6 @@ function CommunicationCard({
               </p>
             </div>
 
-            {/* Tribunal */}
             <div>
               <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 tracking-wide mb-1">
                 <Landmark className="h-3.5 w-3.5" />
@@ -197,7 +194,6 @@ function CommunicationCard({
               <p className="text-sm text-gray-700">{c.tribunal}</p>
             </div>
 
-            {/* Destinatários */}
             {recipient_names && (
               <div>
                 <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 tracking-wide mb-1">
@@ -208,7 +204,6 @@ function CommunicationCard({
               </div>
             )}
 
-            {/* Conteúdo */}
             {c.content && (
               <div>
                 <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 tracking-wide mb-1">
@@ -220,9 +215,7 @@ function CommunicationCard({
             )}
           </div>
 
-          {/* Coluna direita */}
           <div className="flex flex-col gap-4 min-w-[180px] shrink-0">
-            {/* Data */}
             <div>
               <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 tracking-wide mb-1">
                 <Calendar className="h-3.5 w-3.5" />
@@ -231,7 +224,6 @@ function CommunicationCard({
               <p className="text-sm text-gray-700">{formatDate(c.available_at)}</p>
             </div>
 
-            {/* Tipo da comunicação */}
             <div>
               <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 tracking-wide mb-1">
                 <Info className="h-3.5 w-3.5" />
@@ -240,7 +232,6 @@ function CommunicationCard({
               <p className="text-sm text-gray-700">{c.kind}</p>
             </div>
 
-            {/* Badge transitou em julgado */}
             {c.has_res_judicata && (
               <Badge variant="warning" className="self-start mt-1">
                 Transitou em julgado
@@ -248,7 +239,6 @@ function CommunicationCard({
             )}
           </div>
 
-          {/* Botão Resumir */}
           <div className="shrink-0 flex items-start">
             <Button
               variant="outline"

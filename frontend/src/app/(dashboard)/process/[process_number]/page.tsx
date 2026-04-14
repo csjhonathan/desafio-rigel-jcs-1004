@@ -35,7 +35,6 @@ export default async function ProcessPage({ params }: Props) {
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Breadcrumb */}
       <nav className="flex items-center gap-1.5 text-sm text-muted-foreground">
         <Link href="/communications" className="hover:text-foreground transition-colors">
           Diário Oficial
@@ -44,7 +43,6 @@ export default async function ProcessPage({ params }: Props) {
         <span className="text-foreground font-medium">Detalhes do processo</span>
       </nav>
 
-      {/* Cabeçalho do processo */}
       <div className="bg-white border rounded-lg p-5">
         <div className="flex flex-col md:flex-row items-start justify-between mb-2">
           <h1 className="text-lg font-bold text-gray-900">{process_number} {communications[0].kind ? `- ${communications[0].kind}` : ''}</h1>
@@ -102,7 +100,6 @@ export default async function ProcessPage({ params }: Props) {
         </div>
       </div>
 
-      {/* Lista de comunicações */}
       <ProcessDetailClient communications={communications} token={token} />
     </div>
   )
