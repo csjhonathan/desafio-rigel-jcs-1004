@@ -46,7 +46,10 @@ export default async function ProcessPage({ params }: Props) {
 
       {/* Cabeçalho do processo */}
       <div className="bg-white border rounded-lg p-5">
-        <h1 className="text-lg font-bold text-gray-900 mb-3">{process_number} {communications[0].kind ? `- ${communications[0].kind}` : ''}</h1>
+        <div className="flex flex-col md:flex-row items-start justify-between mb-2">
+          <h1 className="text-lg font-bold text-gray-900">{process_number} {communications[0].kind ? `- ${communications[0].kind}` : ''}</h1>
+          {has_res_judicata && <Badge variant="warning" className="self-start">Transitou em julgado</Badge>}
+        </div>
 
         <div className="hidden md:flex items-center gap-5 text-sm text-muted-foreground">
           <div className="inline-flex items-center gap-1.5">
@@ -78,8 +81,6 @@ export default async function ProcessPage({ params }: Props) {
         </div>
 
         <div className="md:hidden flex flex-col gap-4 text-gray-700">
-          {has_res_judicata && <Badge variant="warning" className="self-start">Transitou em julgado</Badge>}
-
           <div className="inline-flex items-center gap-2 text-sm">
             <Landmark className="h-4 w-4 shrink-0 text-gray-500" />
             <span>{unique_tribunals.join(', ')}</span>
