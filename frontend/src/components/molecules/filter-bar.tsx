@@ -33,12 +33,12 @@ export function FilterBar({ filters, onChange, onReset }: FilterBarProps) {
   const has_dates = !!(filters.start_date || filters.end_date)
 
   return (
-    <div className="bg-white border rounded-lg p-4 flex flex-wrap gap-3 items-center">
+    <div className="bg-white border rounded-lg p-4 flex flex-col gap-3 items-stretch md:flex-row md:flex-wrap md:items-center">
       <SearchField
         value={filters.process_number ?? ''}
         onChange={(v) => onChange({ ...filters, process_number: v || undefined, page: 1 })}
         placeholder="Buscar por número do processo"
-        className="flex-1 min-w-[240px]"
+        className="w-full md:flex-1 md:min-w-[240px]"
       />
 
       <Select
@@ -47,7 +47,7 @@ export function FilterBar({ filters, onChange, onReset }: FilterBarProps) {
           onChange({ ...filters, tribunal: v || undefined, page: 1 })
         }
       >
-        <SelectTrigger className="w-[200px]">
+        <SelectTrigger className="w-full md:w-[200px]">
           <SelectValue placeholder="Selecione um tribunal" />
         </SelectTrigger>
         <SelectContent className="max-h-[280px] overflow-y-auto">
@@ -65,12 +65,14 @@ export function FilterBar({ filters, onChange, onReset }: FilterBarProps) {
         onChange={(start_date, end_date) =>
           onChange({ ...filters, start_date, end_date, page: 1 })
         }
+        className="w-full md:w-auto"
       />
 
       <Button
         variant="outline"
         onClick={onReset}
         disabled={!(filters.process_number || filters.tribunal || has_dates)}
+        className="w-full md:w-auto"
       >
         Limpar filtros
       </Button>
