@@ -1,9 +1,7 @@
 'use client'
 
 import * as React from 'react'
-import { Calendar, FileText, Info, Landmark, Users } from 'lucide-react'
-import { Sparkles } from 'lucide-react'
-import { Badge } from '@/components/atoms/badge'
+import { Calendar, FileText, Sparkles, Users } from 'lucide-react'
 import { Button } from '@/components/atoms/button'
 import { AiSummaryModal } from '@/components/organisms/ai-summary-modal'
 import { Communication, Recipient } from '@/types'
@@ -69,53 +67,49 @@ function CommunicationEntry({
 
   return (
     <div className="bg-white border rounded-lg p-5">
-      <div className="flex items-start justify-between gap-4 mb-4">
-        <div className="flex items-center gap-1.5 text-sm font-semibold text-gray-500">
-          <Calendar className="h-3.5 w-3.5" />
-          {formatDate(c.available_at)}
-        </div>
-
-        <div className="flex items-center gap-2 shrink-0">
-          {c.has_res_judicata && (
-            <Badge variant="warning">Transitou em julgado</Badge>
-          )}
+      <div className="flex flex-col gap-3">
+        <div className="flex justify-start md:hidden">
           <Button
             variant="outline"
             size="sm"
             onClick={onResume}
-            className={
-              cn(
-                'flex items-center gap-1.5',
-                {
-                  'c.ai_summary': 'text-green-500',
-                  '!text-green-500': c.ai_summary,
-                }
-              )
-            }
+            className={cn('flex items-center gap-1.5', {
+              'c.ai_summary': 'text-green-500',
+              '!text-green-500': c.ai_summary,
+            })}
           >
             <Sparkles className="h-3.5 w-3.5" />
             {c.ai_summary ? 'Ver resumo' : 'Resumir'}
           </Button>
         </div>
-      </div>
 
-      <div className="flex flex-col gap-3">
-        {/* Tribunal */}
-        <div>
-          <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">
-            <Landmark className="h-3.5 w-3.5" />
-            Tribunal
+        <div className="hidden md:flex items-start justify-between gap-4">
+          <div className="flex items-center gap-1.5 text-sm font-semibold text-gray-500">
+            <Calendar className="h-3.5 w-3.5" />
+            {formatDate(c.available_at)}
           </div>
-          <p className="text-sm text-gray-700">{c.tribunal}</p>
+
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onResume}
+            className={cn('flex items-center gap-1.5 shrink-0', {
+              'c.ai_summary': 'text-green-500',
+              '!text-green-500': c.ai_summary,
+            })}
+          >
+            <Sparkles className="h-3.5 w-3.5" />
+            {c.ai_summary ? 'Ver resumo' : 'Resumir'}
+          </Button>
         </div>
 
-        {/* Tipo */}
-        <div>
+        {/* Data */}
+        <div className="md:hidden">
           <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">
-            <Info className="h-3.5 w-3.5" />
-            Tipo
+            <Calendar className="h-3.5 w-3.5" />
+            Data
           </div>
-          <p className="text-sm text-gray-700">{c.kind}</p>
+          <p className="text-sm text-gray-700">{formatDate(c.available_at)}</p>
         </div>
 
         {/* Destinatários */}
