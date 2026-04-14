@@ -21,6 +21,12 @@ export class CommunicationsController {
     return this.communicationsService.findAllByProcessNumber(process_number)
   }
 
+  @Get('tribunals')
+  @ApiOperation({ summary: 'Listar tribunais únicos existentes nas comunicações' })
+  listUniqueTribunals() {
+    return this.communicationsService.listUniqueTribunals()
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Buscar comunicação por ID' })
   findById(@Param('id') id: string) {

@@ -27,6 +27,7 @@ describe('CommunicationsService', () => {
     findAll: jest.Mock
     findById: jest.Mock
     findByProcessNumber: jest.Mock
+    listUniqueTribunals: jest.Mock
     updateAiSummary: jest.Mock
   }
   let ai_service: { summarize: jest.Mock }
@@ -36,6 +37,7 @@ describe('CommunicationsService', () => {
       findAll: jest.fn(),
       findById: jest.fn(),
       findByProcessNumber: jest.fn(),
+      listUniqueTribunals: jest.fn(),
       updateAiSummary: jest.fn(),
     }
     ai_service = { summarize: jest.fn() }
@@ -63,6 +65,14 @@ describe('CommunicationsService', () => {
     repository.findById.mockResolvedValue(null)
 
     await expect(service.findById('uuid-1')).rejects.toThrow(NotFoundException)
+  })
+
+  it('listUniqueTribunals delega ao repositório', async () => {
+    const payload = ['STJ', 'TJSP']
+    repository.listUniqueTribunals.mockResolvedValue(payload)
+
+    await expect(service.listUniqueTribunals()).resolves.toEqual(payload)
+    expect(repository.listUniqueTribunals).toHaveBeenCalledTimes(1)
   })
 
   it('findById retorna comunicação quando existe', async () => {

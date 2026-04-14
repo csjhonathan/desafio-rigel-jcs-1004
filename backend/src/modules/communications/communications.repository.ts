@@ -75,6 +75,17 @@ export class CommunicationsRepository {
     })
   }
 
+  async listUniqueTribunals() {
+    const tribunals = await this.prisma.communication.findMany({
+      select: { tribunal: true },
+      where: { tribunal: { not: '' } },
+      distinct: ['tribunal'],
+      orderBy: { tribunal: 'asc' },
+    })
+
+    return tribunals.map((item) => item.tribunal)
+  }
+
   async upsert(data: {
     external_id: string
     process_number: string

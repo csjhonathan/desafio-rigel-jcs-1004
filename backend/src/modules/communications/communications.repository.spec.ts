@@ -5,11 +5,12 @@ describe('CommunicationsRepository', () => {
   let repository: CommunicationsRepository
   let findMany: jest.Mock
   let count: jest.Mock
+  let prisma: PrismaService
 
   beforeEach(() => {
     findMany = jest.fn().mockResolvedValue([])
     count = jest.fn().mockResolvedValue(0)
-    const prisma = {
+    prisma = {
       communication: {
         findMany,
         count,
@@ -78,5 +79,18 @@ describe('CommunicationsRepository', () => {
         orderBy: [{ available_at: 'desc' }, { id: 'desc' }],
       }),
     )
+  })
+
+  it('listUniqueTribunals busca valores únicos e ordenados', async () => {
+    findMany.mockResolvedValue([{ tribunal: 'STJ' }, { tribunal: 'TJSP' }])
+
+    await expect(repository.listUniqueTribunals()).resolves.toEqual(['STJ', 'TJSP'])
+
+    expect(prisma.communication.findMany).toHaveBeenCalledWith({
+      select: { tribunal: true },
+      where: { tribunal: { not: '' } },
+      distinct: ['tribunal'],
+      orderBy: { tribunal: 'asc' },
+    })
   })
 })

@@ -98,6 +98,9 @@ export const api = {
         { token },
       ),
 
+    listUniqueTribunals: (token: string) =>
+      request<string[]>('/communications/tribunals', { token }),
+
     generateAiSummary: (
       id: string,
       token: string,

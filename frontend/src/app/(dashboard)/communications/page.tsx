@@ -16,6 +16,8 @@ const DEFAULT_FILTERS: CommunicationFilters = {
 export default function CommunicationsPage() {
   const { data: session } = useSession()
   const [filters, setFilters] = React.useState<CommunicationFilters>(DEFAULT_FILTERS)
+  const [tribunals, setTribunals] = React.useState<string[]>([])
+  const [tribunals_loading, setTribunalsLoading] = React.useState(false)
   const [result, setResult] = React.useState<PaginatedResponse<Communication> | null>(null)
   const [loading, setLoading] = React.useState(true)
   const [error, setError] = React.useState<string | null>(null)
@@ -24,8 +26,25 @@ export default function CommunicationsPage() {
 
   React.useEffect(() => {
     if (!token) return
+    fetchTribunals()
+  }, [token])
+
+  React.useEffect(() => {
+    if (!token) return
     fetchCommunications()
   }, [filters, token])
+
+  async function fetchTribunals() {
+    setTribunalsLoading(true)
+    try {
+      const data = await api.communications.listUniqueTribunals(token)
+      setTribunals(data)
+    } catch {
+      setTribunals([])
+    } finally {
+      setTribunalsLoading(false)
+    }
+  }
 
   async function fetchCommunications() {
     setLoading(true)
@@ -54,6 +73,8 @@ export default function CommunicationsPage() {
       {/* Barra de filtros */}
       <FilterBar
         filters={filters}
+        tribunals={tribunals}
+        tribunals_loading={tribunals_loading}
         onChange={setFilters}
         onReset={() => setFilters(DEFAULT_FILTERS)}
       />

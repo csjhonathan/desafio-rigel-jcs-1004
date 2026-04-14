@@ -13,6 +13,7 @@ type Story = StoryObj<typeof FilterBar>
 export const Empty: Story = {
   args: {
     filters: { page: 1, limit: 20 },
+    tribunals: ['STJ', 'TJSP', 'TRF1'],
     onChange: () => {},
     onReset: () => {},
   },
@@ -27,6 +28,7 @@ export const WithValues: Story = {
       start_date: '2024-01-01',
       end_date: '2024-12-31',
     },
+    tribunals: ['STJ', 'TJSP', 'TRF1'],
     onChange: () => {},
     onReset: () => {},
   },

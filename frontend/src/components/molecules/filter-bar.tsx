@@ -13,23 +13,21 @@ import {
 import { CommunicationFilters } from '@/types'
 import { Button } from '../atoms/button'
 
-const TRIBUNAIS = [
-  'STF', 'STJ', 'TST', 'TSE', 'STM',
-  'TRF1', 'TRF2', 'TRF3', 'TRF4', 'TRF5', 'TRF6',
-  'TJSP', 'TJRJ', 'TJMG', 'TJRS', 'TJPR', 'TJSC',
-  'TJBA', 'TJPE', 'TJCE', 'TJGO', 'TJDF', 'TJMS',
-  'TJMT', 'TJPA', 'TJMA', 'TJPB', 'TJPI', 'TJRN',
-  'TJRO', 'TJTO', 'TJAL', 'TJAM', 'TJAP', 'TJAC',
-  'TJRR', 'TJSE', 'TJES',
-]
-
 interface FilterBarProps {
   filters: CommunicationFilters
+  tribunals: string[]
+  tribunals_loading?: boolean
   onChange: (filters: CommunicationFilters) => void
   onReset: () => void
 }
 
-export function FilterBar({ filters, onChange, onReset }: FilterBarProps) {
+export function FilterBar({
+  filters,
+  tribunals,
+  tribunals_loading = false,
+  onChange,
+  onReset,
+}: FilterBarProps) {
   const has_dates = !!(filters.start_date || filters.end_date)
 
   return (
@@ -42,20 +40,31 @@ export function FilterBar({ filters, onChange, onReset }: FilterBarProps) {
       />
 
       <Select
+        disabled={tribunals_loading}
         value={filters.tribunal ?? ''}
         onValueChange={(v) =>
           onChange({ ...filters, tribunal: v || undefined, page: 1 })
         }
       >
         <SelectTrigger className="w-full md:w-[200px]">
-          <SelectValue placeholder="Selecione um tribunal" />
+          <SelectValue placeholder={tribunals_loading ? 'Carregando tribunais...' : 'Selecione um tribunal'} />
         </SelectTrigger>
         <SelectContent className="max-h-[280px] overflow-y-auto">
-          {TRIBUNAIS.map((t) => (
-            <SelectItem key={t} value={t}>
-              {t}
+          {tribunals_loading ? (
+            <SelectItem value="loading-tribunals" disabled>
+              Carregando tribunais...
             </SelectItem>
-          ))}
+          ) : tribunals.length === 0 ? (
+            <SelectItem value="no-tribunals" disabled>
+              Nenhum tribunal encontrado
+            </SelectItem>
+          ) : (
+            tribunals.map((tribunal) => (
+              <SelectItem key={tribunal} value={tribunal}>
+                {tribunal}
+              </SelectItem>
+            ))
+          )}
         </SelectContent>
       </Select>
 
