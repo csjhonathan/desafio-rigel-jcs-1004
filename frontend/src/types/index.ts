@@ -59,3 +59,11 @@ export interface SyncLog {
   total_stored: number
   error_message: string | null
 }
+
+export interface SyncStatus {
+  has_running_sync: boolean
+  running_sync: {
+    id: string
+    started_at: string
+  } | null
+}
