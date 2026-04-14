@@ -22,6 +22,23 @@ export function brazilCivilDayStartUtc(ymd: string): Date {
   return new Date(`${ymd}T00:00:00${BRT}`)
 }
 
+/**
+ * Converte `dataDisponibilizacao` da PJE em instante UTC alinhado aos filtros da API:
+ * a data é o **dia civil no Brasil**; ignora hora se vier ISO (`2026-04-09T00:00:00Z`).
+ */
+export function pjeDisponibilizacaoToAvailableAtUtc(raw: string): Date {
+  const trimmed = raw.trim()
+  const ymd = trimmed.match(/^(\d{4}-\d{2}-\d{2})/)?.[1]
+  if (ymd) {
+    return brazilCivilDayStartUtc(ymd)
+  }
+  const d = new Date(trimmed)
+  if (Number.isNaN(d.getTime())) {
+    throw new RangeError(`dataDisponibilizacao inválida: ${raw}`)
+  }
+  return d
+}
+
 /** Próximo dia civil (calendário gregoriano) a partir de `YYYY-MM-DD`. */
 export function addCalendarDaysYmd(ymd: string, days: number): string {
   const parts = ymd.split('-').map(Number)

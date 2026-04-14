@@ -1,7 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { ConfigService } from '@nestjs/config'
 import { Cron } from '@nestjs/schedule'
-import { addCalendarDaysYmd, brazilTodayYmd } from '../common/brazil-calendar-day'
+import {
+  addCalendarDaysYmd,
+  brazilTodayYmd,
+  pjeDisponibilizacaoToAvailableAtUtc,
+} from '../common/brazil-calendar-day'
 import { detectResJudicata } from '../modules/communications/communications.service'
 import { CommunicationsRepository } from '../modules/communications/communications.repository'
 import { type PjeCommunication, PjeApiClient } from '../pje/pje-api.client'
@@ -116,7 +120,7 @@ export class SyncCommunicationsJob {
         external_id: item.id,
         process_number: item.numeroProcesso,
         tribunal: item.siglaTribunal,
-        available_at: new Date(item.dataDisponibilizacao),
+        available_at: pjeDisponibilizacaoToAvailableAtUtc(item.dataDisponibilizacao),
         kind: item.tipoComunicacao,
         content: item.texto ?? undefined,
         has_res_judicata,
