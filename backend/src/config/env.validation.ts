@@ -35,7 +35,7 @@ export function validateEnv(config: Record<string, unknown>): EnvConfig {
   const result = env_schema.safeParse(config)
 
   if (!result.success) {
-    const messages = result.error.errors
+    const messages = result.error.issues
       .map((e) => `  - ${e.path.join('.')}: ${e.message}`)
       .join('\n')
     throw new Error(`Variáveis de ambiente inválidas:\n${messages}`)

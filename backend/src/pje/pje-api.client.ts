@@ -263,3 +263,8 @@ export class PjeApiClient {
     return merged
   }
 }
+
+/** Valida o JSON de uma página de `/comunicacao` (lista de itens). Útil em testes. */
+export function parsePjeListResponse(raw: unknown) {
+  return response_schema.safeParse(raw)
+}
