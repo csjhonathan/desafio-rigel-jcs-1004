@@ -62,8 +62,19 @@ export function DateRangePicker({
 }: DateRangePickerProps) {
   const [open, setOpen] = React.useState(false)
   const [draft, setDraft] = React.useState<DateRange | undefined>(undefined)
+  const [is_mobile, setIsMobile] = React.useState(false)
 
   const range_committed = committedRange(start_date, end_date)
+
+  React.useEffect(() => {
+    const media_query = window.matchMedia('(max-width: 768px)')
+    const updateIsMobile = () => setIsMobile(media_query.matches)
+
+    updateIsMobile()
+    media_query.addEventListener('change', updateIsMobile)
+
+    return () => media_query.removeEventListener('change', updateIsMobile)
+  }, [])
 
   function handleOpenChange(next_open: boolean) {
     setOpen(next_open)
@@ -116,7 +127,7 @@ export function DateRangePicker({
         <Button
           variant="outline"
           className={cn(
-            'justify-start text-left font-normal',
+            'w-full justify-start text-left font-normal',
             !range_for_label?.from && 'text-muted-foreground',
             className,
           )}
@@ -125,13 +136,16 @@ export function DateRangePicker({
           {label}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-auto p-0 mr-10" align="start">
+      <PopoverContent
+        className="w-[calc(100vw-2rem)] max-w-fit p-0 md:w-auto"
+        align={is_mobile ? 'center' : 'start'}
+      >
         <Calendar
           mode="range"
           locale={ptBR}
           selected={draft}
           onSelect={handleSelect}
-          numberOfMonths={2}
+          numberOfMonths={is_mobile ? 1 : 2}
           fixedWeeks={true}
         />
       </PopoverContent>
