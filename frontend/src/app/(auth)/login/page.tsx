@@ -9,10 +9,17 @@ import { Button } from '@/components/atoms/button'
 import { TextInput } from '@/components/atoms/text-input'
 import { Spinner } from '@/components/atoms/spinner'
 
+interface ILoginValues {
+  email: string
+  password: string
+}
+
 export default function LoginPage() {
   const router = useRouter()
-  const [email, setEmail] = React.useState('')
-  const [password, setPassword] = React.useState('')
+  const [values, setValues] = React.useState<ILoginValues>({
+    email: '',
+    password: '',
+  })
   const [error, setError] = React.useState<string | null>(null)
   const [loading, setLoading] = React.useState(false)
 
@@ -22,8 +29,7 @@ export default function LoginPage() {
     setLoading(true)
 
     const result = await signIn('credentials', {
-      email,
-      password,
+      ...values,
       redirect: false,
     })
 
@@ -50,8 +56,8 @@ export default function LoginPage() {
           id="email"
           label="E-mail"
           type="email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          value={values.email}
+          onChange={(e) => setValues({ ...values, email: e.target.value })}
           placeholder="seu@email.com"
           required
           disabled={loading}
@@ -63,8 +69,8 @@ export default function LoginPage() {
           id="password"
           label="Senha"
           type="password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
+          value={values.password}
+          onChange={(e) => setValues({ ...values, password: e.target.value })}
           placeholder="••••••••"
           required
           disabled={loading}

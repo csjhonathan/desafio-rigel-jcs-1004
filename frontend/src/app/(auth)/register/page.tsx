@@ -15,16 +15,25 @@ interface FieldErrors {
   confirm?: string
 }
 
+interface IRegisterValues {
+  name: string
+  email: string
+  password: string
+  confirm_password: string
+}
+
 function isValidEmail(value: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)
 }
 
 export default function RegisterPage() {
   const router = useRouter()
-  const [name, setName] = React.useState('')
-  const [email, setEmail] = React.useState('')
-  const [password, setPassword] = React.useState('')
-  const [confirm_password, setConfirmPassword] = React.useState('')
+  const [values, setValues] = React.useState<IRegisterValues>({
+    name: '',
+    email: '',
+    password: '',
+    confirm_password: '',
+  })
   const [field_errors, setFieldErrors] = React.useState<FieldErrors>({})
   const [error, setError] = React.useState<string | null>(null)
   const [loading, setLoading] = React.useState(false)
@@ -38,13 +47,13 @@ export default function RegisterPage() {
 
     const errors: FieldErrors = {}
 
-    if (!isValidEmail(email)) {
+    if (!isValidEmail(values.email)) {
       errors.email = 'Informe um e-mail válido.'
     }
-    if (password.length < 8) {
+    if (values.password.length < 8) {
       errors.password = 'A senha deve ter no mínimo 8 caracteres.'
     }
-    if (password !== confirm_password) {
+    if (values.password !== values.confirm_password) {
       errors.confirm = 'As senhas não coincidem.'
     }
 
@@ -58,7 +67,7 @@ export default function RegisterPage() {
     setLoading(true)
 
     try {
-      await api.auth.register(name, email, password)
+      await api.auth.register(values.name, values.email, values.password)
       router.push('/login?registered=true')
     } catch (err) {
       setError((err as Error).message)
@@ -78,8 +87,8 @@ export default function RegisterPage() {
           id="name"
           label="Nome completo"
           type="text"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
+          value={values.name}
+          onChange={(e) => setValues({ ...values, name: e.target.value })}
           placeholder="Seu nome"
           required
           disabled={loading}
@@ -89,8 +98,8 @@ export default function RegisterPage() {
           id="email"
           label="E-mail"
           type="email"
-          value={email}
-          onChange={(e) => { setEmail(e.target.value); clearFieldError('email') }}
+          value={values.email}
+          onChange={(e) => { setValues({ ...values, email: e.target.value }); clearFieldError('email') }}
           placeholder="seu@email.com"
           required
           disabled={loading}
@@ -102,8 +111,8 @@ export default function RegisterPage() {
           id="password"
           label="Senha"
           type="password"
-          value={password}
-          onChange={(e) => { setPassword(e.target.value); clearFieldError('password') }}
+          value={values.password}
+          onChange={(e) => { setValues({ ...values, password: e.target.value }); clearFieldError('password') }}
           placeholder="••••••••"
           required
           disabled={loading}
@@ -116,8 +125,8 @@ export default function RegisterPage() {
           id="confirm_password"
           label="Confirme sua senha"
           type="password"
-          value={confirm_password}
-          onChange={(e) => { setConfirmPassword(e.target.value); clearFieldError('confirm') }}
+          value={values.confirm_password}
+          onChange={(e) => { setValues({ ...values, confirm_password: e.target.value }); clearFieldError('confirm') }}
           placeholder="••••••••"
           required
           disabled={loading}
