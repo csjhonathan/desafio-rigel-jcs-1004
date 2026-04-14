@@ -83,7 +83,7 @@ export function AiSummaryModal({
 
   return (
     <Dialog open onOpenChange={(open) => { if (!open) onClose() }}>
-      <DialogContent className="max-w-xl max-h-[80vh] flex flex-col">
+      <DialogContent className="w-[calc(100vw-2rem)] max-w-xl max-h-[80vh] rounded-xl flex flex-col">
         <DialogHeader>
           <DialogTitle>Resumo com IA</DialogTitle>
         </DialogHeader>
@@ -115,8 +115,8 @@ export function AiSummaryModal({
           )}
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={onClose}>
+        <DialogFooter className="items-end sm:items-center sm:justify-end">
+          <Button variant="outline" onClick={onClose} className="w-auto">
             Fechar
           </Button>
         </DialogFooter>
