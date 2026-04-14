@@ -109,7 +109,7 @@ function CommunicationEntry({
               <FileText className="h-3.5 w-3.5" />
               Conteúdo de movimentação
             </div>
-            <div className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
+            <div className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap [overflow-wrap:anywhere]">
               {c.has_res_judicata ? highlightResJudicata(c.content) : c.content}
             </div>
           </div>
