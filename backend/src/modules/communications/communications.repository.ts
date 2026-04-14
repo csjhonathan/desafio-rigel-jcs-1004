@@ -42,7 +42,8 @@ export class CommunicationsRepository {
         where,
         skip,
         take: limit,
-        orderBy: { available_at: 'desc' },
+        /** Empates em `available_at` são comuns; sem 2.º critério a ordem muda após UPDATE (ex. ai_summary). */
+        orderBy: [{ available_at: 'desc' }, { id: 'desc' }],
         include: { recipients: true },
       }),
       this.prisma.communication.count({ where }),
@@ -70,7 +71,7 @@ export class CommunicationsRepository {
     return this.prisma.communication.findMany({
       where: { process_number },
       include: { recipients: true },
-      orderBy: { available_at: 'desc' },
+      orderBy: [{ available_at: 'desc' }, { id: 'desc' }],
     })
   }
 
