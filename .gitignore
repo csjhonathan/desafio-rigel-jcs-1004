@@ -11,6 +11,8 @@ dist/
 out/
 build/
 .cache/
+backend/dist/
+frontend/.next/
 frontend/tsconfig.tsbuildinfo
 
 # Env
