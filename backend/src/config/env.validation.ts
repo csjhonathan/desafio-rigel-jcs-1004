@@ -18,8 +18,12 @@ const env_schema = z.object({
     const n = Number(v)
     return Number.isFinite(n) ? n : undefined
   }, z.number().int().min(1).max(8).optional()),
-  ANTHROPIC_API_KEY: z.string().optional(),
-  OPENAI_API_KEY: z.string().optional(),
+  /** Chave em https://aistudio.google.com/apikey — resumos via Gemini (REST). */
+  GEMINI_API_KEY: z.string().optional(),
+  /** Modelo :generateContent (ex. gemini-flash-latest). */
+  GEMINI_MODEL: z.string().optional().default('gemini-flash-latest'),
+  /** Caracteres máx. do texto enviados ao Gemini (reduz TPM no free tier). Predef. 12000. */
+  GEMINI_MAX_INPUT_CHARS: z.coerce.number().int().min(2_000).max(500_000).default(12_000),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   BACKEND_PORT: z.coerce.number().default(3001),
   PJE_LAST_DAYS_TO_SYNC: z.coerce.number().default(20),
