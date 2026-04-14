@@ -6,9 +6,8 @@ import Image from 'next/image'
 export default function AuthLayout({ children }: { children: React.ReactNode }) {
   return (
     <div className="min-h-screen flex bg-[#f5f6f8]">
-
-      <div className="lg:w-[50%] lg:flex p-4">
-        <div className="hidden w-full lg:flex relative flex-col justify-start p-10 overflow-hidden rounded-2xl">
+      <div className="hidden lg:flex lg:w-[50%] p-4">
+        <div className="w-full relative flex-col justify-start p-10 overflow-hidden rounded-2xl">
           <Image
             src="/auth-bg.png"
             alt="JusCash background"
@@ -35,13 +34,27 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
         </div>
       </div>
 
-      <div className="flex-1 flex flex-col justify-between ">
-        <div className="flex-1 flex flex-col gap-y-8 items-center justify-center p-8">
-          <div className="bg-white rounded-2xl shadow-sm border border-gray-300 p-8 w-full max-w-[700px]">
+      <div className="flex-1 flex flex-col justify-between">
+        <div className="flex-1 flex flex-col gap-y-8 items-center justify-center px-4 py-10 sm:p-8">
+          <div className="lg:hidden text-center">
+            <div className="flex justify-center">
+              <Image
+                src="/logo-dark.png"
+                alt="JusCash logo"
+                width={170}
+                height={56}
+                className="object-contain"
+                priority
+              />
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">Antecipe honorários advocatícios com a JusCash</p>
+          </div>
+
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-300 p-6 sm:p-8 w-full max-w-[700px]">
             {children}
           </div>
 
-          <div>
+          <div className="text-center">
             <span className="text-sm text-muted-foreground">
               © 2026 • Juscash Administração de Pagamentos e Recebimentos SA
             </span>
