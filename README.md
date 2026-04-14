@@ -63,7 +63,7 @@ curl https://SEU-DOMINIO.ngrok-free.app/health
 ```bash
 # 1. Clonar e configurar variáveis de ambiente
 cp .env.example .env
-# Editar .env: JWT_SECRET, etc. (ANTHROPIC_API_KEY opcional para resumo IA)
+# Editar .env: JWT_SECRET, etc. (GEMINI_API_KEY opcional para resumo IA)
 
 # 2. Subir o ambiente completo
 docker compose up --build
@@ -98,7 +98,7 @@ Após rodar o seed:
 | Frontend  | Next.js 14 (App Router) + Tailwind CSS |
 | Banco     | PostgreSQL                             |
 | Auth      | JWT via NextAuth + Passport            |
-| IA        | Claude API (Anthropic)                 |
+| IA        | Google Gemini API (resumos)            |
 | Deploy    | Docker + Docker Compose                |
 
 ## Comandos úteis
