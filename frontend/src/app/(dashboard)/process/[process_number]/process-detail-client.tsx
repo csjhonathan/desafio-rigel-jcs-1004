@@ -7,7 +7,7 @@ import { Badge } from '@/components/atoms/badge'
 import { Button } from '@/components/atoms/button'
 import { AiSummaryModal } from '@/components/organisms/ai-summary-modal'
 import { Communication, Recipient } from '@/types'
-import { formatDate } from '@/lib/utils'
+import { cn, formatDate } from '@/lib/utils'
 
 interface ProcessDetailClientProps {
   communications: Communication[]
@@ -83,10 +83,18 @@ function CommunicationEntry({
             variant="outline"
             size="sm"
             onClick={onResume}
-            className="flex items-center gap-1.5"
+            className={
+              cn(
+                'flex items-center gap-1.5',
+                {
+                  'c.ai_summary': 'text-green-500',
+                  '!text-green-500': c.ai_summary,
+                }
+              )
+            }
           >
             <Sparkles className="h-3.5 w-3.5" />
-            Resumir
+            {c.ai_summary ? 'Ver resumo' : 'Resumir'}
           </Button>
         </div>
       </div>

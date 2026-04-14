@@ -12,6 +12,25 @@ function getApiBaseUrl(): string {
   )
 }
 
+/**
+ * O Nest pode devolver `message` como string ou como objeto (ex. HttpException com corpo `{ error, message }`).
+ */
+function extractApiErrorMessage(body: unknown): string {
+  if (!body || typeof body !== 'object') return 'Erro desconhecido'
+  const b = body as Record<string, unknown>
+  const m = b.message
+  if (typeof m === 'string') return m
+  if (m && typeof m === 'object' && !Array.isArray(m)) {
+    const o = m as Record<string, unknown>
+    if (typeof o.message === 'string') return o.message
+    if (typeof o.error === 'string' && typeof o.message === 'string') return o.message
+  }
+  if (typeof b.statusCode === 'number') {
+    return `Erro HTTP ${b.statusCode}`
+  }
+  return 'Pedido falhou'
+}
+
 async function request<T>(
   path: string,
   options: RequestInit & { token?: string } = {},
@@ -35,8 +54,8 @@ async function request<T>(
   })
 
   if (!response.ok) {
-    const error = await response.json().catch(() => ({ message: 'Erro desconhecido' }))
-    throw new Error(error.message ?? `HTTP ${response.status}`)
+    const error_body = await response.json().catch(() => null)
+    throw new Error(extractApiErrorMessage(error_body ?? { statusCode: response.status }))
   }
 
   return response.json()
@@ -79,10 +98,15 @@ export const api = {
         { token },
       ),
 
-    generateAiSummary: (id: string, token: string) =>
+    generateAiSummary: (
+      id: string,
+      token: string,
+      options?: { signal?: AbortSignal },
+    ) =>
       request<{ ai_summary: string }>(`/communications/${id}/ai-summary`, {
         method: 'POST',
         token,
+        signal: options?.signal,
       }),
   },
 
