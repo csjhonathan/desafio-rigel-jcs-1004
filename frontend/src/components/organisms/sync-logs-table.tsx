@@ -125,54 +125,103 @@ export function SyncLogsTable() {
   }
 
   return (
-    <div className="overflow-x-auto rounded-lg border bg-white">
-      <table className="w-full text-sm">
-        <thead>
-          <tr className="border-b bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">
-            <th className="px-4 py-3 whitespace-nowrap">Status</th>
-            <th className="px-4 py-3 whitespace-nowrap">Iniciado em</th>
-            <th className="px-4 py-3 whitespace-nowrap">Finalizado em</th>
-            <th className="px-4 py-3 whitespace-nowrap">Duração</th>
-            <th className="px-4 py-3 whitespace-nowrap text-right">Obtidos</th>
-            <th className="px-4 py-3 whitespace-nowrap text-right">Novos</th>
-            <th className="px-4 py-3">Erro</th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-gray-100">
-          {logs.map((log) => (
-            <tr
-              key={log.id}
-              className={cn('hover:bg-gray-50 transition-colors', {
-                'bg-blue-50/40 hover:bg-blue-50/60': !log.ended_at,
-              })}
-            >
-              <td className="px-4 py-3 whitespace-nowrap">
-                <StatusBadge log={log} />
-              </td>
-              <td className="px-4 py-3 whitespace-nowrap text-gray-700">
-                {formatDateTime(log.started_at)}
-              </td>
-              <td className="px-4 py-3 whitespace-nowrap text-gray-500">
-                {log.ended_at ? formatDateTime(log.ended_at) : (
-                  <span className="italic text-blue-500">Em andamento...</span>
-                )}
-              </td>
-              <td className="px-4 py-3 whitespace-nowrap text-gray-500 tabular-nums">
+    <div className="space-y-3">
+      <div className="md:hidden flex flex-col gap-3">
+        {logs.map((log) => (
+          <article
+            key={log.id}
+            className={cn('rounded-lg border bg-white p-4 space-y-3', {
+              'bg-blue-50/40 border-blue-100': !log.ended_at,
+            })}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <StatusBadge log={log} />
+              <span className="text-xs text-muted-foreground tabular-nums">
                 {formatDuration(log.started_at, log.ended_at, log.ended_at ? undefined : now)}
-              </td>
-              <td className="px-4 py-3 whitespace-nowrap text-right tabular-nums text-gray-700">
-                {log.total_fetched}
-              </td>
-              <td className="px-4 py-3 whitespace-nowrap text-right tabular-nums font-medium text-gray-900">
-                {log.total_stored}
-              </td>
-              <td className="px-4 py-3 max-w-xs text-red-600 text-xs truncate">
-                {log.error_message ?? '—'}
-              </td>
+              </span>
+            </div>
+
+            <div className="space-y-2 text-sm">
+              <div className="flex items-start justify-between gap-3">
+                <span className="text-gray-500">Iniciado em</span>
+                <span className="text-right text-gray-700">{formatDateTime(log.started_at)}</span>
+              </div>
+              <div className="flex items-start justify-between gap-3">
+                <span className="text-gray-500">Finalizado em</span>
+                <span className="text-right text-gray-700">
+                  {log.ended_at ? (
+                    formatDateTime(log.ended_at)
+                  ) : (
+                    <span className="italic text-blue-500">Em andamento...</span>
+                  )}
+                </span>
+              </div>
+              <div className="flex items-start justify-between gap-3">
+                <span className="text-gray-500">Obtidos</span>
+                <span className="tabular-nums text-gray-700">{log.total_fetched}</span>
+              </div>
+              <div className="flex items-start justify-between gap-3">
+                <span className="text-gray-500">Novos</span>
+                <span className="tabular-nums font-medium text-gray-900">{log.total_stored}</span>
+              </div>
+            </div>
+
+            <div className="text-xs text-red-600 break-words">
+              {log.error_message ?? '—'}
+            </div>
+          </article>
+        ))}
+      </div>
+
+      <div className="hidden md:block overflow-x-auto rounded-lg border bg-white">
+        <table className="w-full text-sm">
+          <thead>
+            <tr className="border-b bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase tracking-wide">
+              <th className="px-4 py-3 whitespace-nowrap">Status</th>
+              <th className="px-4 py-3 whitespace-nowrap">Iniciado em</th>
+              <th className="px-4 py-3 whitespace-nowrap">Finalizado em</th>
+              <th className="px-4 py-3 whitespace-nowrap">Duração</th>
+              <th className="px-4 py-3 whitespace-nowrap text-right">Obtidos</th>
+              <th className="px-4 py-3 whitespace-nowrap text-right">Novos</th>
+              <th className="px-4 py-3">Erro</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody className="divide-y divide-gray-100">
+            {logs.map((log) => (
+              <tr
+                key={log.id}
+                className={cn('hover:bg-gray-50 transition-colors', {
+                  'bg-blue-50/40 hover:bg-blue-50/60': !log.ended_at,
+                })}
+              >
+                <td className="px-4 py-3 whitespace-nowrap">
+                  <StatusBadge log={log} />
+                </td>
+                <td className="px-4 py-3 whitespace-nowrap text-gray-700">
+                  {formatDateTime(log.started_at)}
+                </td>
+                <td className="px-4 py-3 whitespace-nowrap text-gray-500">
+                  {log.ended_at ? formatDateTime(log.ended_at) : (
+                    <span className="italic text-blue-500">Em andamento...</span>
+                  )}
+                </td>
+                <td className="px-4 py-3 whitespace-nowrap text-gray-500 tabular-nums">
+                  {formatDuration(log.started_at, log.ended_at, log.ended_at ? undefined : now)}
+                </td>
+                <td className="px-4 py-3 whitespace-nowrap text-right tabular-nums text-gray-700">
+                  {log.total_fetched}
+                </td>
+                <td className="px-4 py-3 whitespace-nowrap text-right tabular-nums font-medium text-gray-900">
+                  {log.total_stored}
+                </td>
+                <td className="px-4 py-3 max-w-xs text-red-600 text-xs truncate">
+                  {log.error_message ?? '—'}
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   )
 }
