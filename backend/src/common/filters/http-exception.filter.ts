@@ -4,13 +4,17 @@ import {
   ExceptionFilter,
   HttpException,
   HttpStatus,
-  Logger,
+  Injectable,
 } from '@nestjs/common'
+import { ConfigService } from '@nestjs/config'
 import { Request, Response } from 'express'
+import type { LogFormat } from '../structured-log'
+import { logHttpException } from '../structured-log'
 
 @Catch()
+@Injectable()
 export class AllExceptionsFilter implements ExceptionFilter {
-  private readonly logger = new Logger(AllExceptionsFilter.name)
+  constructor(private readonly config: ConfigService) {}
 
   catch(exception: unknown, host: ArgumentsHost) {
     const ctx = host.switchToHttp()
@@ -22,23 +26,30 @@ export class AllExceptionsFilter implements ExceptionFilter {
         ? exception.getStatus()
         : HttpStatus.INTERNAL_SERVER_ERROR
 
-    const message =
+    const raw_message =
       exception instanceof HttpException
         ? exception.getResponse()
         : 'Erro interno no servidor'
 
+    const message =
+      typeof raw_message === 'string' ? raw_message : JSON.stringify(raw_message)
+
     if (status >= 500) {
-      this.logger.error(
-        `${request.method} ${request.url} → ${status}`,
-        exception instanceof Error ? exception.stack : String(exception),
-      )
+      const format = this.config.get<LogFormat>('LOG_FORMAT') ?? 'pretty'
+      logHttpException(format, {
+        method: request.method,
+        path: request.url,
+        status_code: status,
+        message,
+        stack: exception instanceof Error ? exception.stack : undefined,
+      })
     }
 
     response.status(status).json({
       statusCode: status,
       timestamp: new Date().toISOString(),
       path: request.url,
-      message,
+      message: raw_message,
     })
   }
 }

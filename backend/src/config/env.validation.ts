@@ -24,6 +24,11 @@ const env_schema = z.object({
   GEMINI_MODEL: z.string().optional().default('gemini-flash-latest'),
   /** Caracteres máx. do texto enviados ao Gemini (reduz TPM no free tier). Predef. 12000. */
   GEMINI_MAX_INPUT_CHARS: z.coerce.number().int().min(2_000).max(500_000).default(12_000),
+  /**
+   * `json`: uma linha JSON por log (HTTP e erros 5xx), ideal para produção / agregadores.
+   * `pretty`: Nest Logger legível (predefinido em desenvolvimento).
+   */
+  LOG_FORMAT: z.enum(['json', 'pretty']).default('pretty'),
   NODE_ENV: z.enum(['development', 'production', 'test']).default('development'),
   BACKEND_PORT: z.coerce.number().default(3001),
   PJE_LAST_DAYS_TO_SYNC: z.coerce.number().default(20),

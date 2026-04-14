@@ -50,4 +50,14 @@ describe('validateEnv', () => {
     const env = validateEnv(minimal_valid)
     expect(env.GEMINI_API_KEY).toBeUndefined()
   })
+
+  it('aplica LOG_FORMAT predefinido pretty', () => {
+    const env = validateEnv(minimal_valid)
+    expect(env.LOG_FORMAT).toBe('pretty')
+  })
+
+  it('aceita LOG_FORMAT json', () => {
+    const env = validateEnv({ ...minimal_valid, LOG_FORMAT: 'json' })
+    expect(env.LOG_FORMAT).toBe('json')
+  })
 })

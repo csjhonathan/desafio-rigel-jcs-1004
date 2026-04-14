@@ -1,12 +1,12 @@
-import { INestApplication, Logger } from '@nestjs/common'
+import { INestApplication } from '@nestjs/common'
 import type { NextFunction, Request, Response } from 'express'
+import { type LogFormat, logHttpRequest } from './structured-log'
 
 /**
  * Regista cada pedido HTTP (método, URL, status, duração) quando a resposta termina.
- * Útil para ver tráfego do frontend e do Swagger no mesmo sítio dos logs Nest.
+ * O formato vem de `LOG_FORMAT` (ver `structured-log.ts`).
  */
-export function registerHttpRequestLogging(app: INestApplication): void {
-  const logger = new Logger('HTTP')
+export function registerHttpRequestLogging(app: INestApplication, format: LogFormat): void {
   const server = app.getHttpAdapter().getInstance() as {
     use: (fn: (req: Request, res: Response, next: NextFunction) => void) => void
   }
@@ -16,10 +16,13 @@ export function registerHttpRequestLogging(app: INestApplication): void {
     const path = req.originalUrl ?? req.url
 
     res.on('finish', () => {
-      const ms = Date.now() - start
-      const line = `${req.method} ${path} ${res.statusCode} ${ms}ms`
-      if (res.statusCode >= 400) logger.warn(line)
-      else logger.log(line)
+      const duration_ms = Date.now() - start
+      logHttpRequest(format, {
+        method: req.method,
+        path,
+        status_code: res.statusCode,
+        duration_ms,
+      })
     })
 
     next()

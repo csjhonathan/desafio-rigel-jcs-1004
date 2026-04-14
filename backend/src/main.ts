@@ -1,12 +1,16 @@
+import { ConfigService } from '@nestjs/config'
 import { NestFactory } from '@nestjs/core'
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger'
 import { registerHttpRequestLogging } from './common/http-request-logger'
+import type { LogFormat } from './common/structured-log'
 import { AppModule } from './app.module'
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule)
+  const config = app.get(ConfigService)
+  const log_format = config.get<LogFormat>('LOG_FORMAT') ?? 'pretty'
 
-  registerHttpRequestLogging(app)
+  registerHttpRequestLogging(app, log_format)
 
   app.enableCors({
     origin: process.env.FRONTEND_URL ?? 'http://localhost:3000',

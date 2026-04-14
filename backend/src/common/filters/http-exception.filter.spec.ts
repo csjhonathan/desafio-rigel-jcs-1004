@@ -1,5 +1,10 @@
 import { ArgumentsHost, HttpException, Logger, NotFoundException } from '@nestjs/common'
+import { ConfigService } from '@nestjs/config'
 import { AllExceptionsFilter } from './http-exception.filter'
+
+function create_config(format: 'json' | 'pretty' = 'pretty') {
+  return { get: jest.fn().mockReturnValue(format) } as unknown as ConfigService
+}
 
 function create_host(url = '/test') {
   const json = jest.fn()
@@ -24,7 +29,7 @@ describe('AllExceptionsFilter', () => {
   })
 
   it('responde JSON com statusCode para HttpException', () => {
-    const filter = new AllExceptionsFilter()
+    const filter = new AllExceptionsFilter(create_config('pretty'))
     const { host, response } = create_host()
 
     filter.catch(new NotFoundException('não encontrado'), host)
@@ -40,7 +45,7 @@ describe('AllExceptionsFilter', () => {
   })
 
   it('usa 500 para erro não HTTP', () => {
-    const filter = new AllExceptionsFilter()
+    const filter = new AllExceptionsFilter(create_config('pretty'))
     const { host, response } = create_host()
 
     filter.catch(new Error('boom'), host)
@@ -55,7 +60,7 @@ describe('AllExceptionsFilter', () => {
   })
 
   it('aceita HttpException genérica', () => {
-    const filter = new AllExceptionsFilter()
+    const filter = new AllExceptionsFilter(create_config('pretty'))
     const { host, response } = create_host()
 
     filter.catch(new HttpException('bad', 400), host)

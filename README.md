@@ -8,6 +8,12 @@ Monorepo fullstack para consulta de comunicações processuais do **Diário de J
 
 **Frontend:** https://desafio-rigel-jcs-1004-frontend-production.up.railway.app
 
+## CI/CD
+
+- **Integração contínua (GitHub Actions):** em cada **push** para a branch **`main`**, o workflow [`.github/workflows/ci.yml`](.github/workflows/ci.yml) instala dependências, corre **`npm test`** e **`npm run build`** no **backend** e **`npm run build`** no **frontend**. Falhas bloqueiam merge apenas se o repositório exigir checks verdes; de qualquer forma o histórico de runs fica em **Actions** no GitHub.
+- **Entrega contínua (Railway):** o projeto está ligado ao repositório com **deploy automático** ao atualizar a `main` (serviços de backend e frontend no Railway). Variáveis sensíveis e URLs ficam nos painéis do Railway.
+- **Logs em produção:** no backend, define `LOG_FORMAT=json` (ver `.env.example`) para uma **linha JSON por pedido HTTP** e por erro 5xx, mais fácil de filtrar nos logs do Railway ou noutro agregador.
+
 ## Proxy PJE (`pje-proxy/`)
 
 A API do PJE bloqueia requisições vindas de IPs de datacenters (Railway, GitHub Actions, Cloudflare Workers). Como o ambiente local (IP residencial) não é bloqueado, o projeto inclui um **proxy reverso standalone** em `pje-proxy/` que deve rodar em um PC doméstico ligado continuamente.
@@ -99,7 +105,7 @@ Após rodar o seed:
 | Banco     | PostgreSQL                             |
 | Auth      | JWT via NextAuth + Passport            |
 | IA        | Google Gemini API (resumos)            |
-| Deploy    | Docker + Docker Compose                |
+| Deploy    | Docker Compose (local) + Railway (CD) + GitHub Actions (CI) |
 
 ## Comandos úteis
 
