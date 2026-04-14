@@ -6,9 +6,9 @@ import { CalendarIcon } from 'lucide-react'
 import type { DateRange } from 'react-day-picker'
 import { ptBR } from 'react-day-picker/locale'
 import { cn } from '@/lib/utils'
-import { Button } from '@/components/ui/button'
-import { Calendar } from '@/components/ui/calendar'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Button } from '@/components/atoms/button'
+import { Calendar } from '@/components/atoms/calendar'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/atoms/popover'
 
 function parseLocalDate(str: string): Date {
   const [year, month, day] = str.split('-').map(Number)

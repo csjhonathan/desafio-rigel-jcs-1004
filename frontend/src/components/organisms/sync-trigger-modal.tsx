@@ -4,14 +4,14 @@ import * as React from 'react'
 import { CheckCircle, Clock3, XCircle } from 'lucide-react'
 import { useSession } from 'next-auth/react'
 import { Button } from '@/components/atoms/button'
-import { Spinner } from '@/components/atoms/spinner'
 import {
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
-} from '@/components/ui/dialog'
+} from '@/components/atoms/dialog'
+import { Spinner } from '@/components/atoms/spinner'
 import { api } from '@/lib/api'
 
 interface SyncTriggerModalProps {

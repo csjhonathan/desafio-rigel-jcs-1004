@@ -2,14 +2,14 @@
 
 import * as React from 'react'
 import { Button } from '@/components/atoms/button'
-import { Spinner } from '@/components/atoms/spinner'
 import {
   Dialog,
   DialogContent,
+  DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogFooter,
-} from '@/components/ui/dialog'
+} from '@/components/atoms/dialog'
+import { Spinner } from '@/components/atoms/spinner'
 import { TextWithMarkdownBold } from '@/components/atoms/text-with-markdown-bold'
 import { api } from '@/lib/api'
 
