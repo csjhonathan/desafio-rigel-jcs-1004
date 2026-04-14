@@ -86,12 +86,99 @@ function CommunicationCard({
   return (
     <Link href={`/process/${encodeURIComponent(c.process_number)}`} className="block group">
       <div className="bg-white border rounded-lg p-5 hover:shadow-sm hover:border-gray-300 transition-all cursor-pointer">
-        <div className="flex gap-6">
+        <div className="md:hidden flex flex-col gap-4">
+          <div className="shrink-0 flex items-start">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={(e) => {
+                e.preventDefault()
+                e.stopPropagation()
+                onResume()
+              }}
+              className={
+                cn(
+                  'flex items-center gap-1.5',
+                  {
+                    'c.ai_summary': 'text-green-500',
+                    '!text-green-500': c.ai_summary,
+                  }
+                )
+              }
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              {c.ai_summary ? 'Ver resumo' : 'Resumir'}
+            </Button>
+          </div>
+
+          <div>
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 tracking-wide mb-1">
+              <Scale className="h-3.5 w-3.5" />
+              Processo
+            </div>
+            <p className="text-sm font-medium text-gray-900">
+              {c.process_number}
+              {c.kind ? ` - ${c.kind}` : ''}
+            </p>
+          </div>
+
+          <div>
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 tracking-wide mb-1">
+              <Calendar className="h-3.5 w-3.5" />
+              Data
+            </div>
+            <p className="text-sm text-gray-700">{formatDate(c.available_at)}</p>
+          </div>
+
+          <div>
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 tracking-wide mb-1">
+              <Landmark className="h-3.5 w-3.5" />
+              Tribunal
+            </div>
+            <p className="text-sm text-gray-700">{c.tribunal}</p>
+          </div>
+
+          <div>
+            <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 tracking-wide mb-1">
+              <Info className="h-3.5 w-3.5" />
+              Tipo da comunicação
+            </div>
+            <p className="text-sm text-gray-700">{c.kind}</p>
+          </div>
+
+          {c.has_res_judicata && (
+            <Badge variant="warning" className="self-start">
+              Transitou em julgado
+            </Badge>
+          )}
+
+          {recipient_names && (
+            <div>
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 tracking-wide mb-1">
+                <Users className="h-3.5 w-3.5" />
+                Destinatários
+              </div>
+              <p className="text-sm text-gray-700">{recipient_names}</p>
+            </div>
+          )}
+
+          {c.content && (
+            <div>
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 tracking-wide mb-1">
+                <FileText className="h-3.5 w-3.5" />
+                Conteúdo
+              </div>
+              <p className="text-sm text-gray-600 line-clamp-3 leading-relaxed">{c.content}</p>
+            </div>
+          )}
+        </div>
+
+        <div className="hidden md:flex gap-6">
           {/* Coluna esquerda */}
           <div className="flex flex-col gap-4 flex-1 min-w-0">
             {/* Processo */}
             <div>
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 tracking-wide mb-1">
                 <Scale className="h-3.5 w-3.5" />
                 Processo
               </div>
@@ -103,7 +190,7 @@ function CommunicationCard({
 
             {/* Tribunal */}
             <div>
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 tracking-wide mb-1">
                 <Landmark className="h-3.5 w-3.5" />
                 Tribunal
               </div>
@@ -113,7 +200,7 @@ function CommunicationCard({
             {/* Destinatários */}
             {recipient_names && (
               <div>
-                <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 tracking-wide mb-1">
                   <Users className="h-3.5 w-3.5" />
                   Destinatários
                 </div>
@@ -124,7 +211,7 @@ function CommunicationCard({
             {/* Conteúdo */}
             {c.content && (
               <div>
-                <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 tracking-wide mb-1">
                   <FileText className="h-3.5 w-3.5" />
                   Conteúdo
                 </div>
@@ -137,7 +224,7 @@ function CommunicationCard({
           <div className="flex flex-col gap-4 min-w-[180px] shrink-0">
             {/* Data */}
             <div>
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 tracking-wide mb-1">
                 <Calendar className="h-3.5 w-3.5" />
                 Data
               </div>
@@ -146,7 +233,7 @@ function CommunicationCard({
 
             {/* Tipo da comunicação */}
             <div>
-              <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">
+              <div className="flex items-center gap-1.5 text-xs font-semibold text-gray-500 tracking-wide mb-1">
                 <Info className="h-3.5 w-3.5" />
                 Tipo da comunicação
               </div>
